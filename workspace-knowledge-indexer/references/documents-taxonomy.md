@@ -9,7 +9,7 @@
 | 领域编码 | 领域名称 | 说明 |
 |----------|----------|------|
 | `realestate` | 非洲房地产运营 | 涉及非洲地区的房产投资、开发、出租、价格分析、土地交易等 |
-| `marketing` | 内容营销 | 涉及抖音/TikTok 短视频、内容策略、脚本撰写、海报设计、社交媒体运营等 |
+| `marketing` | 内容营销 | 涉及抖音/TikTok 短视频、小红书图文笔记、内容策略、脚本撰写、海报设计、社交媒体运营等 |
 | `business` | 企业运营 | 涉及公司注册、证照、合规、投资、融资、会议、合作等企业行政事务 |
 | `techdev` | 技术开发 | 涉及代码编写、数据库、自动化测试、Web 开发、工具开发等 |
 | `appstore` | 应用商店上架 | 涉及 App Store / Google Play 应用提交、审核、上架等 |
@@ -34,6 +34,7 @@
 |----------|------|----------|
 | `marketing.strategy` | 策略文档 | 出海策略 JSON、品牌定位文档 |
 | `marketing.script` | 脚本 | 分镜脚本、口播稿 |
+| `marketing.xhs` | 小红书笔记 | 小红书图文笔记、种草文案、XHS 内容 |
 | `marketing.design` | 设计素材 | 海报（中/英/法）、插画、图片 |
 
 ## 领域推断规则
@@ -43,7 +44,7 @@
 | 关键词（任一命中） | 归属领域 |
 |--------------------|----------|
 | 非洲、阿比让、abidjan、天鹅湖、凤凰城、公寓、地块、地产、properties、price_adjust、location、nigeria、kenya、象牙海岸、科特迪瓦 | `realestate` |
-| 抖音、douyin、tiktok、脚本、海报、poster、内容、营销、短视频、content、brand、strategy、出海 | `marketing` |
+| 抖音、douyin、tiktok、脚本、海报、poster、内容、营销、短视频、content、brand、strategy、出海、小红书、xhs、XHS、笔记、种草 | `marketing` |
 | 公司、营业执照、DUNS、邓白氏、投资、会议纪要、备案、承诺书、SACSILOGIC | `business` |
 | sql、csv、html、代码、test、project、superset、automated_testing、ai-agent、设计 | `techdev` |
 | app store、google play | `appstore` |
