@@ -9,10 +9,44 @@ __pycache__/
 dist/
 build/
 
-# IDE
-.vscode/
-.idea/
+# Node
+node_modules/
 
-# Sessions & Caches (don't track login cookies)
+# 密钥 / 环境变量（绝不提交）
+.env
+.env.*
+
+# 会话与缓存（不要提交登录态 cookie）
 *session*.json
 *.cache/
+
+# 数据库（运行时）
+*.db
+*.db-journal
+livescope.db
+
+# 日志与临时文件
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# 运行时输出
+topic_report_*.md
+audio_topic_report_*.md
+last_*_result.txt
+transcription_result*.txt
+audio_analysis*.md
+
+# douyin-live-monitor 嵌套缓存与生成文件
+douyin-live-monitor/~
+douyin-live-monitor/src/proto/
+
+# 音频文件
+*.wav
+*.mp3
+*.aac
+*.m4a
+*.flac
