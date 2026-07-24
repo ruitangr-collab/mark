@@ -1,0 +1,22 @@
+{
+  "name": "腾讯ima",
+  "installedAt": 1784192450062,
+  "source": "marketplace",
+  "version": "1.1.8",
+  "skillId": "skill_2053082144792322048",
+  "examples_zh": [
+    "把这篇文章存到我的知识库",
+    "搜索我笔记里关于机器学习的内容",
+    "新建一篇标题为周报的笔记"
+  ],
+  "examples_en": [
+    "Save this article to my knowledge base",
+    "Search my notes for machine learning content",
+    "Create a new note titled Weekly Review"
+  ],
+  "description_zh": "ima笔记与知识库管理（读取、写入、检索）",
+  "description_en": "IMA notes & knowledge base management (read, write, search)",
+  "iconSource": "https://openplatform-cdn.codebuddy.cn/public/skills/icons/ima-skills.svg",
+  "iconLocalPath": "/Users/goterra/.workbuddy/skills/ima-skills/_icon.svg",
+  "iconDownloadedFrom": "https://openplatform-cdn.codebuddy.cn/public/skills/icons/ima-skills.svg"
+}

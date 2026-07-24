@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+build/
+dist/
+*.egg-info/
+
+# Protobuf 生成文件（由 compile_proto.sh 生成，可选择不提交）
+src/proto/
+
+# 运行时数据
+livescope.db
+*.db
+*.db-journal
+
+# 环境变量
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# 报告输出（运行时生成）
+topic_report_*.md
+audio_topic_report_*.md
+
+# 临时文件
+*.tmp
+*.temp
+temp/
+logs/
+*.log
+last_*_result.txt
+
+# 测试文件输出
+/tmp/
+transcription_result*.txt
+audio_analysis*.md
+
+# 音频文件
+*.wav
+*.mp3
+*.aac
+*.m4a
+*.flac

@@ -1,0 +1,27 @@
+#!/bin/bash
+# Pre-commit hook：运行基本检查
+
+echo "Running pre-commit checks..."
+
+# 检查 Python 语法错误
+echo "Checking Python syntax..."
+python3 -m py_compile src/collectors/*.py src/database/*.py src/processors/*.py 2>/dev/null
+if [ 0 -ne 0 ]; then
+    echo "ERROR: Python syntax check failed!"
+    exit 1
+fi
+
+# 检查 SKILL.md 是否存在
+if [ ! -f SKILL.md ]; then
+    echo "ERROR: SKILL.md is missing!"
+    exit 1
+fi
+
+# 检查 requirements.txt 是否存在
+if [ ! -f requirements.txt ]; then
+    echo "ERROR: requirements.txt is missing!"
+    exit 1
+fi
+
+echo "All checks passed! Committing..." 
+
