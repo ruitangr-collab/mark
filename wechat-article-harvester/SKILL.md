@@ -74,6 +74,21 @@ visibility: public
 - **C. 你直接粘贴 URL 清单（最省事，跳过层1浏览器）**：`harvest.py add <urls...>` 批量导入。适合不想开浏览器的场景。
 
 ## 层1：URL 采集（全历史）
+
+### 一键采集脚本 collect_urls.py（推荐）
+本 skill 自带 `collect_urls.py`，自动翻页/滚动抽全部文章 URL，**无需手动抄链接**。流程：
+1. 一次性安装 + 登录（方案 A）：
+   ```bash
+   npm install -g agent-browser && agent-browser install
+   agent-browser --headed --profile ~/.wechat-harvest open "https://mp.weixin.qq.com/"
+   # 弹窗扫码/账号登录后，另开终端：
+   agent-browser --profile ~/.wechat-harvest auth save wechat-mp
+   ```
+2. 跑采集：`python3 collect_urls.py` → 产出 `urls.txt`（去重，含全部 `mp.weixin.qq.com/s?__biz=` 文章链接；连续两页无新增或到 `WB_MAX_PAGES` 默认 200 即停）。
+3. 把 `urls.txt` 贴给二货跑层2+层3；或本地 `python3 harvest.py add $(cat urls.txt)` 入清单后再交由二货。
+> 脚本机制：`get html`+正则抽 URL（只收 `mp.weixin.qq.com/s?__biz=`）、`find text <候选> click` 翻页、`scroll` 兜底无限滚动。微信无公开历史 API，登录态必须你本机提供，**沙箱跑不了层1**。
+
+### 手动采集（备用）
 选登录方案 A/B 后：
 1. 打开「已发表内容」：`https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_list&action=list&lang=zh_CN&count=10`
 2. `agent-browser snapshot -i` 定位文章列表与「下一页」；循环翻页提取每条 `mp.weixin.qq.com/s?__biz=...` 链接 + 标题。
