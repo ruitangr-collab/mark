@@ -70,8 +70,18 @@ STRONG_WORDS = [
 EXCLUDE_WORDS = [
     '民宿', '酒店', '宾馆', '旅馆', '睡衣', '选矿', '金矿', '农场',
     '养殖', '翻译社', '俱乐部', '黑杨', '商贸城', '媳妇', '跨国恋',
-    '红宝石', '黄金矿业', '钻石', '工厂',
+    '红宝石', '黄金矿业', '钻石', '工厂', '菏泽', '牡丹芍药', '孵化器',
+    '时光机', '做证明题', '建材超市',  # 在非华人内容号特征（Wendy的时光机刚果金等，非服务商）
 ]
+
+# 语境模糊强词：国内产业园/招商号同样命中（杭州开投/东郊记忆/恒力南通等），
+# 必须同时命中「非洲/国家词/出海」语境才算服务商，否则只进候选不进库。
+# 2026-09-04 晚 20:00 拓号踩坑：19 个自动入库里 12 个是国内园区号，靠人工回滚。
+ZONE_AMBIGUOUS_WORDS = ['产业园', '工业园', '招商']
+
+# 非洲/出海语境词（与园区类强词联动用）
+AFRICA_CTX_WORDS = ['非洲', '出海', '跨境', '驻外', '非洲国家'] + \
+    [k for k in da.COUNTRIES if k not in ('非洲',)]
 
 # 非洲国家词（复用 discover_accounts 的）
 COUNTRIES = da.COUNTRIES
@@ -83,10 +93,21 @@ def detect_service(text: str) -> list[str]:
 
 
 def is_strong_service(text: str) -> bool:
-    """强服务判定（自动入库门槛）：命中强服务词 且 未命中排除词"""
+    """强服务判定（自动入库门槛）：命中强服务词 且 未命中排除词。
+
+    语境坑（2026-09-04 晚修复）：'产业园/工业园/招商' 等词国内园区号同样命中，
+    必须联动非洲/出海语境，否则会把杭州开投、东郊记忆·成都、恒力南通、
+    浩森牡丹芍药等纯国内园区招商号灌进名单。
+    """
     if any(w in text for w in EXCLUDE_WORDS):
         return False
-    return any(w in text for w in STRONG_WORDS)
+    if any(w in text for w in STRONG_WORDS):
+        # 若命中的全是「语境模糊强词」（园区/招商类），必须有非洲/出海语境
+        hits = [w for w in STRONG_WORDS if w in text]
+        if all(w in ZONE_AMBIGUOUS_WORDS for w in hits):
+            return any(w in text for w in AFRICA_CTX_WORDS)
+        return True
+    return False
 
 
 def detect_countries(text: str) -> list[str]:
