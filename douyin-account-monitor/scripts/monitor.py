@@ -453,33 +453,46 @@ def extract_video_detail(page) -> dict:
     except Exception:
         return detail
 
+    # 互动按钮区会出现纯标签行（「分享」等），收集数字时必须跳过，
+    # 否则会把标签当成结构异常而整体放弃解析。
+    LABELS = {'举报', '分享', '转发', '收藏', '评论', '点赞', '不喜欢', '展开'}
     for i, l in enumerate(lines):
-        if l == '举报' and i >= 5:
-            # 往前收 4 个数字（从后往前收集）
+        if l == '举报' and i >= 3:
+            # 往前收最多 4 个数字（从后往前收集），跳过纯标签行
             cands = []
             j = i - 1
             while j >= 0 and len(cands) < 4:
+                if lines[j] in LABELS:
+                    j -= 1
+                    continue
                 v = parse_cn_number(lines[j])
-                if v is not None:
-                    cands.append(v)
-                elif cands:
-                    break  # 已开始收集却遇到非数字 → 结构异常，放弃
+                if v is None:
+                    break  # 遇到非数字非标签 → 结构边界，停止
+                cands.append(v)
                 j -= 1
+            # 顺序（从后往前）：转发 / 收藏 / 评论 / 点赞
+            # 实测转发数有时不渲染（只剩 3 个数：收藏 / 评论 / 点赞），需兼容。
             if len(cands) == 4:
                 detail['share_count'] = cands[0]
                 detail['collect_count'] = cands[1]
                 detail['comment_count'] = cands[2]
                 detail['digg_count'] = cands[3]
+            elif len(cands) == 3:
+                detail['collect_count'] = cands[0]
+                detail['comment_count'] = cands[1]
+                detail['digg_count'] = cands[2]
             # 发布时间：锚点之后 1-3 行
             for k in range(i + 1, min(i + 4, len(lines))):
                 m = re.search(r'发布时间[：:]\s*(.+)', lines[k])
                 if m:
                     detail['publish_time'] = m.group(1).strip()
                     break
-            # 文案：跳过 4 个数字行后的第一行非数字
-            j = i - 5
-            while j >= 0:
-                if parse_cn_number(lines[j]) is None and lines[j] != '举报':
+            # 文案：锚点往前跳过数字与标签后的第一行有效文本
+            j = i - 1
+            floor = max(0, i - 12)
+            while j >= floor:
+                if (lines[j] not in LABELS and lines[j] != '举报'
+                        and parse_cn_number(lines[j]) is None):
                     detail['title'] = lines[j][:200]
                     break
                 j -= 1
@@ -571,10 +584,12 @@ def cmd_add(raw_input: str):
                      VALUES (?,?,?,?,?,?,1)""",
                   (sec_uid, now, info.get('follower_count'), info.get('total_favorited'),
                    info.get('aweme_count'), len(info.get('video_ids', []))))
-        # 基线视频视为「已确认」(seen_count=2)，避免首次 run 误报新作品
+        # 基线视频视为「已确认且已报警」(seen_count=2, notified=1)。
+        # notified 必须显式置 1：否则 confirmed 逻辑会在该账号作品数首次增长时，
+        # 把这些老视频当成新作品误报（实测 非洲于哥 有 24 条这样的存量行）。
         for vid in info.get('video_ids', []):
-            c.execute("""INSERT OR IGNORE INTO videos (aweme_id, sec_uid, discovered_at, seen_count)
-                         VALUES (?,?,?,2)""", (vid, sec_uid, now))
+            c.execute("""INSERT OR IGNORE INTO videos (aweme_id, sec_uid, discovered_at, seen_count, notified)
+                         VALUES (?,?,?,2,1)""", (vid, sec_uid, now))
         conn.commit()
 
         print(f"\n✅ 已纳入监控")
@@ -678,8 +693,12 @@ def cmd_run(only_sec_uid: str | None = None, fetch_comments: bool = True):
                 else:
                     seen, notified = known[vid]
                     c.execute("UPDATE videos SET seen_count=? WHERE aweme_id=?", (seen + 1, vid))
+                    # 注意：不要再要求 expected_new > 0。插入队列时已经用「作品数确实涨了」
+                    # 过滤过一次；这里若再要求一次，账号发完就停（下轮作品数不再涨）时，
+                    # 真新作品会永久卡在未报警状态（实测：非洲蔡 2026-09-02 那条被卡死）。
+                    # 只需二次确认 + 已建基线即可放行，队列规模本身已被插入时的配额限死。
                     if (seen + 1 >= 2 and not notified and baselined
-                            and expected_new > 0 and len(new_videos) < expected_new):
+                            and len(new_videos) < 5):
                         new_videos.append(vid)
                         c.execute("UPDATE videos SET notified=1 WHERE aweme_id=?", (vid,))
 
@@ -730,8 +749,16 @@ def cmd_run(only_sec_uid: str | None = None, fetch_comments: bool = True):
                                 page.scroll.down(400)
                                 time.sleep(0.2)
                             comments = extract_comments_from_page(page)
-                        c.execute("""UPDATE videos SET title=?, publish_time=?, digg_count=?,
-                                     comment_count=?, collect_count=?, share_count=?, detail_fetched_at=?
+                        # 注意：详情抓取可能部分字段为 None（风控/渲染失败）。
+                        # 必须用 COALESCE 保留主页同步来的旧值，否则会把已知点赞数抹成 NULL。
+                        c.execute("""UPDATE videos SET
+                                       title=COALESCE(NULLIF(?, ''), title),
+                                       publish_time=COALESCE(NULLIF(?, ''), publish_time),
+                                       digg_count=COALESCE(?, digg_count),
+                                       comment_count=COALESCE(?, comment_count),
+                                       collect_count=COALESCE(?, collect_count),
+                                       share_count=COALESCE(?, share_count),
+                                       detail_fetched_at=?
                                      WHERE aweme_id=?""",
                                   (det.get('title'), det.get('publish_time'), det.get('digg_count'),
                                    det.get('comment_count'), det.get('collect_count'),
@@ -831,10 +858,18 @@ def cmd_detail(vid: str, fetch_comments: bool = True):
             comments = extract_comments_from_page(page)
 
         c = conn.cursor()
-        c.execute("""INSERT OR IGNORE INTO videos (aweme_id, sec_uid, discovered_at, seen_count)
-                     VALUES (?,?,?,2)""", (vid, 'manual', now))
-        c.execute("""UPDATE videos SET title=?, publish_time=?, digg_count=?, comment_count=?,
-                     collect_count=?, share_count=?, detail_fetched_at=? WHERE aweme_id=?""",
+        c.execute("""INSERT OR IGNORE INTO videos (aweme_id, sec_uid, discovered_at, seen_count, notified)
+                     VALUES (?,?,?,2,1)""", (vid, 'manual', now))
+        # 同上：COALESCE 保护，避免 None 覆盖已有数值。
+        c.execute("""UPDATE videos SET
+                       title=COALESCE(NULLIF(?, ''), title),
+                       publish_time=COALESCE(NULLIF(?, ''), publish_time),
+                       digg_count=COALESCE(?, digg_count),
+                       comment_count=COALESCE(?, comment_count),
+                       collect_count=COALESCE(?, collect_count),
+                       share_count=COALESCE(?, share_count),
+                       detail_fetched_at=?
+                     WHERE aweme_id=?""",
                   (det.get('title'), det.get('publish_time'), det.get('digg_count'),
                    det.get('comment_count'), det.get('collect_count'), det.get('share_count'),
                    now, vid))
