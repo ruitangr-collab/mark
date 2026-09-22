@@ -7,18 +7,30 @@
 
 用法:
   python3 monitor.py add "<抖音链接/分享口令>"   # 解析并注册账号 + 首次快照
-  python3 monitor.py run [--no-comments]          # 巡查全部账号，输出增量变化
-  python3 monitor.py run <sec_uid>                # 只巡查指定账号
+  python3 monitor.py run [--no-comments] [--all]  # 巡查「本轮到期」的账号，输出增量变化
+  python3 monitor.py run <sec_uid>                # 只巡查指定账号（忽略分层，强制巡）
   python3 monitor.py list                         # 查看监控名单 + 最新数据
   python3 monitor.py report <sec_uid>             # 输出该账号历史趋势
   python3 monitor.py videos <sec_uid> [N]         # 作品数据排行（按点赞降序，看哪条爆了）
   python3 monitor.py detail <aweme_id>            # 手动补抓单条视频的数据与评论
+  python3 monitor.py tier                         # 查看分层分布
+  python3 monitor.py tier --auto [--apply]        # 按「作品数停顿天数」重算分层（--apply 才写入）
+  python3 monitor.py tier <sec_uid> <S|A|B>       # 手动指定某账号分层
 
 设计要点（踩坑记录）:
   - 账号统计（粉丝/获赞/作品数）在 DOM 文本，不在 RENDER_DATA
   - 标签与数值可能同行("粉丝21.0万")也可能分行("粉丝\n21.0万")，需双路匹配
   - 主页视频链接为 //www.douyin.com/video/<id> 相对协议形式
   - 必须复用 ~/.workbuddy/douyin_chrome_profile 登录态，无头模式易被识别
+
+巡查分层（2026-09-18 新增，见 SKILL.md「巡查分层与自适应降频」）:
+  不是人为给账号贴标签，而是按「作品数多久没增长」自动降频：
+    S = 每天巡（7 天内有过更新，或加入未满 7 天的观察期新号）
+    A = 3 天一轮（7~21 天作品数没动）
+    B = 7 天一轮（21 天以上没动）
+  账号一旦发新作品，下轮巡查自动升回 S —— 自愈，不需要人工干预。
+  降频零业务风险：作品数没涨的账号，本轮不可能产出新作品与爆款。
+  `--all` 强制全量（人工排查、首次建库、怀疑漏报时用）。
 """
 import sys
 import re
@@ -39,6 +51,16 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # 单次巡查最多抓取多少条新作品的详情（含评论），防止任务被拖到不可控长度
 MAX_DETAIL_FETCH = 20
+
+# ─── 巡查分层（2026-09-18）────────────────────────────────────────────
+# 分层依据是「作品数(aweme_count)多久没增长」，不是人工价值判断。
+# 理由：账号池里 62/81 都命中服务词、粉丝量与业务价值也不相关（1540 粉的清关号
+# 与 250 万粉的博主同样重要），唯一客观且与巡查价值直接挂钩的信号是「有没有发新作品」。
+# 作品数不涨 → 不可能有新作品 → 不可能有爆款，本轮巡查价值为零。降频零业务损失。
+TIER_CYCLE = {'S': 1, 'A': 3, 'B': 7}   # tier → 巡查周期（天）
+TIER_NEW_DAYS = 7      # 加入未满 N 天的新号，一律按 S 观察
+TIER_A_IDLE = 7        # 作品数停顿 ≥ N 天 → A
+TIER_B_IDLE = 21       # 作品数停顿 ≥ N 天 → B
 
 # 评论过滤规则复用 douyin-comment-analyzer 的 common.py（避免两套噪音词表漂移）
 _COMMON_DIR = Path.home() / ".workbuddy/skills/douyin-comment-analyzer/scripts"
@@ -96,7 +118,15 @@ def init_db():
     acols = {r[1] for r in c.execute("PRAGMA table_info(accounts)").fetchall()}
     for col, ddl in [('baselined', 'INTEGER DEFAULT 0'), ('douyin_id', 'TEXT'),
                      ('ip_location', 'TEXT'), ('age', 'INTEGER'),
-                     ('region', 'TEXT'), ('baseline_digg', 'INTEGER')]:
+                     ('region', 'TEXT'), ('baseline_digg', 'INTEGER'),
+                     # tier 默认 'S'：新库/新账号一律每天巡，行为与分层前完全一致。
+                     # 降频只能由 `tier --auto --apply` 显式触发，不会自己发生。
+                     ('tier', "TEXT DEFAULT 'S'"),
+                     # next_check：下一次该巡的日期（分层调度的唯一依据）。
+                     # 独立成一列而不是复用 last_check，是为了「错峰」时不篡改真实巡查时间
+                     # （last_check 会展示在清单里，被改写会让「上次巡查」变成假数据）。
+                     # NULL = 未排期 = 立即可巡，保证加列后首次运行行为与分层前一致。
+                     ('next_check', 'TEXT')]:
         if col not in acols:
             c.execute(f"ALTER TABLE accounts ADD COLUMN {col} {ddl}")
     c.execute("""CREATE TABLE IF NOT EXISTS snapshots (
@@ -274,10 +304,16 @@ def extract_account_from_homepage(page) -> dict:
     html = page.html
 
     # 昵称：优先 title（"xxx的抖音 - 抖音"）
+    # 【已知坑 24】2026-09-22：title 不匹配「X的抖音 / X的主页」格式时（说明页面根本没跳到主页，
+    # 仍停留在上一个账号的页面、视频页或抖音首页），旧代码会直接把整条 title 当昵称写回 accounts，
+    # 永久覆盖真实昵称（实测「非洲故事」「Mr. Jason」被写成视频标题，「欧万海运」被写成上一账号的标题）。
+    # 修法：title 必须以「的抖音 / 的主页」结尾才算主页，否则不产出 nickname（让上层判「页面异常」跳过）。
     t = re.search(r'<title>([^<]+)</title>', html)
     if t:
-        name = re.sub(r'(的抖音|的主页).*$', '', t.group(1)).strip()
-        if name:
+        raw = t.group(1).strip()
+        m = re.match(r'^(.+?)\s*(?:的抖音|的主页)\s*(?:-\s*抖音)?\s*$', raw)
+        name = m.group(1).strip() if m else ''
+        if name and '抖音' not in name and len(name) <= 30:
             info['nickname'] = name
 
     # 签名：meta description
@@ -456,6 +492,15 @@ def extract_video_detail(page) -> dict:
     # 互动按钮区会出现纯标签行（「分享」等），收集数字时必须跳过，
     # 否则会把标签当成结构异常而整体放弃解析。
     LABELS = {'举报', '分享', '转发', '收藏', '评论', '点赞', '不喜欢', '展开'}
+    # 坑16：详情页抓取失败时会把 UI 文案当文案返回（"抢首评"/"喜欢"/"点击按住可拖动视频"），
+    # COALESCE 只挡空值挡不住抓错的非空值，会把主页同步来的真文案覆盖掉。这里做黑名单拦截。
+    UI_TEXTS = {'抢首评', '喜欢', '不喜欢', '点击按住可拖动视频', '说点什么吧',
+                '发评论', '@Ta的朋友', '相关搜索', '为大家推荐', '查看更多',
+                '打开抖音App', '立即下载', '取消', '确定',
+                # 坑19 新样本（2026-09-13 狮王 7684678941482925001）：
+                # 视频播放器自身的提示语也会被当文案抓走，形态是 "Ns 后循环播放当前视频"
+                '3s 后循环播放当前视频', '5s 后循环播放当前视频',
+                '10s 后循环播放当前视频', '循环播放当前视频'}
     for i, l in enumerate(lines):
         if l == '举报' and i >= 3:
             # 往前收最多 4 个数字（从后往前收集），跳过纯标签行
@@ -491,7 +536,9 @@ def extract_video_detail(page) -> dict:
             j = i - 1
             floor = max(0, i - 12)
             while j >= floor:
-                if (lines[j] not in LABELS and lines[j] != '举报'
+                if (lines[j] not in LABELS and lines[j] not in UI_TEXTS
+                        and lines[j] != '举报'
+                        and not re.match(r'^\d+s\s*后循环播放当前视频$', lines[j])
                         and parse_cn_number(lines[j]) is None):
                     detail['title'] = lines[j][:200]
                     break
@@ -605,18 +652,41 @@ def cmd_add(raw_input: str):
         conn.close()
 
 
-def cmd_run(only_sec_uid: str | None = None, fetch_comments: bool = True):
+def cmd_run(only_sec_uid: str | None = None, fetch_comments: bool = True,
+            all_accounts: bool = False):
     conn = init_db()
     c = conn.cursor()
     if only_sec_uid:
-        c.execute("SELECT sec_uid, nickname FROM accounts WHERE active=1 AND sec_uid=?", (only_sec_uid,))
+        c.execute("""SELECT sec_uid, nickname, COALESCE(tier,'S') FROM accounts
+                     WHERE active=1 AND sec_uid=?""", (only_sec_uid,))
+    elif all_accounts:
+        c.execute("""SELECT sec_uid, nickname, COALESCE(tier,'S') FROM accounts
+                     WHERE active=1 ORDER BY added_at""")
     else:
-        c.execute("SELECT sec_uid, nickname FROM accounts WHERE active=1")
+        # ── 分层选号：只巡「本轮到期」的账号 ─────────────────────────────
+        # 到期判定看 next_check（独立调度列），不看 last_check。
+        # 【坑】曾想用「last_check 距今 ≥ cycle 天」判定，但 last_check 实测为 04:01:39，
+        # 次日 04:00 运行时时间差只有 0.999 天，`>= 1` 判 false，全部 S 级账号被静默跳过
+        # （任务显示成功，实际一个都没巡）。且该法会让同层账号在同一时刻集体到期（共振）。
+        # 用独立 next_check 后：错峰由 tier --auto --apply 一次性写入，之后自动续期。
+        c.execute("""SELECT sec_uid, nickname, COALESCE(tier,'S') FROM accounts
+                     WHERE active=1
+                       AND (next_check IS NULL
+                            OR date(next_check) <= date('now','localtime'))
+                     ORDER BY added_at""")
     targets = c.fetchall()
     if not targets:
-        print("监控名单为空。先用 add 添加账号。")
+        total = c.execute("SELECT count(*) FROM accounts WHERE active=1").fetchone()[0]
+        if all_accounts or only_sec_uid:
+            print("监控名单为空。先用 add 添加账号。")
+        else:
+            print(f"本轮无到期账号（全员共 {total} 个，均未到各自巡查周期）。")
+            print("如需强制全量巡查，加 --all。")
         conn.close()
-        return 1
+        return 0
+    if not all_accounts and not only_sec_uid:
+        total = c.execute("SELECT count(*) FROM accounts WHERE active=1").fetchone()[0]
+        print(f"本轮到期 {len(targets)} / 全员 {total} 个账号（分层巡查）")
 
     page = open_browser()
     try:
@@ -625,7 +695,7 @@ def cmd_run(only_sec_uid: str | None = None, fetch_comments: bool = True):
             return 1
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         changes = []
-        for sec_uid, nickname in targets:
+        for sec_uid, nickname, *_tier in targets:
             print(f"\n🔍 巡查: {nickname or sec_uid}")
             page.get(f"https://www.douyin.com/user/{sec_uid}")
             time.sleep(6)
@@ -641,6 +711,15 @@ def cmd_run(only_sec_uid: str | None = None, fetch_comments: bool = True):
 
             if not info.get('nickname') and not info.get('follower_count'):
                 print("   ⚠️  页面异常，可能触发风控或登录态失效，跳过")
+                c.execute("""INSERT INTO snapshots (sec_uid, checked_at, ok) VALUES (?,?,0)""", (sec_uid, now))
+                conn.commit()
+                continue
+
+            # 【坑 26】2026-09-22：page.get() 偶发不跳转（仍停在上一个账号的主页），
+            # 于是把上一个账号的粉丝/获赞/作品数写进本账号快照（实测「非洲恒力润滑油宁生」
+            # 被写成邹先华的 253.7 万粉，凭空 +2531877）。判别：抓到的昵称与库内不符即判脏。
+            if info.get('nickname') and nickname and info['nickname'] != nickname:
+                print(f"   ⚠️  页面未跳转（抓到「{info['nickname']}」≠ 本账号「{nickname}」），判脏跳过")
                 c.execute("""INSERT INTO snapshots (sec_uid, checked_at, ok) VALUES (?,?,0)""", (sec_uid, now))
                 conn.commit()
                 continue
@@ -679,12 +758,24 @@ def cmd_run(only_sec_uid: str | None = None, fetch_comments: bool = True):
             pending_cnt = 0
             for vid in info.get('video_ids', []):
                 if vid not in known:
-                    if expected_new > 0 and pending_cnt < expected_new:
+                    # 【硬约束 0】未建基线的账号（baselined=0）一律只建基线，绝不进待报队列。
+                    # 坑（2026-09-05）：拓号引擎 discover_services.py 的轻量快照写 aweme_count=0，
+                    # 于是 expected_new = 当前作品数 - 0 = 巨大值，首轮基线的全部老视频
+                    # 都被当成「新作品」塞进待报队列（实测一次灌进 296 条，含 2021 年的视频）。
+                    # baselined 此前只卡「放行」（下方第 2 条），没卡「入队」，补上这一层。
+                    if baselined and expected_new > 0 and pending_cnt < expected_new:
                         # 作品数确实涨了 → 有可能是真新作品，进入二次确认队列
                         c.execute("""INSERT OR IGNORE INTO videos
                                      (aweme_id, sec_uid, discovered_at, seen_count, notified)
                                      VALUES (?,?,?,1,0)""", (vid, sec_uid, now))
-                        pending_cnt += 1
+                        # 坑（2026-09-06）：pending_cnt 曾无条件自增。但上面是 INSERT OR IGNORE，
+                        # 当该 aweme_id 已存在（被同轮前一个账号先插走、或挂在别的 sec_uid 下）
+                        # 时插入会被静默忽略，名额却照样被烧掉，导致本账号的真新作品
+                        # 掉进 else 分支被标成「已确认基线」而永久漏报
+                        # （实测：非洲大小姐 7681878064623652122，作品数 487→488 却零报警）。
+                        # 必须按真实插入行数计数。
+                        if (c.rowcount or 0) > 0:
+                            pending_cnt += 1
                     else:
                         # 作品数没涨（或名额已用尽）→ 这是基线缺失的老视频，直接标为已确认
                         c.execute("""INSERT OR IGNORE INTO videos
@@ -717,13 +808,19 @@ def cmd_run(only_sec_uid: str | None = None, fetch_comments: bool = True):
             diggs = sorted(r[0] for r in c.fetchall())
             baseline = diggs[len(diggs) // 2] if diggs else None
 
+            # 下一次到期日 = 今天 + 该账号的 tier 周期（S=1/A=3/B=7）。
+            # 巡查失败（页面异常 continue）的账号不会走到这里，next_check 保持不动，
+            # 于是下一轮仍会到期重试 —— 失败自动重试，不需要额外机制。
+            _cyc = TIER_CYCLE.get((_tier[0] if _tier else 'S'), 1)
             c.execute("""UPDATE accounts SET last_check=?, baselined=1,
+                         next_check=date('now','localtime',?),
                          nickname=COALESCE(?, nickname),
                          douyin_id=COALESCE(?, douyin_id), ip_location=COALESCE(?, ip_location),
                          age=COALESCE(?, age), region=COALESCE(?, region),
                          baseline_digg=?
                          WHERE sec_uid=?""",
-                      (now, info.get('nickname'), info.get('douyin_id'), info.get('ip_location'),
+                      (now, f'+{_cyc} days',
+                       info.get('nickname'), info.get('douyin_id'), info.get('ip_location'),
                        info.get('age'), info.get('region'), baseline, sec_uid))
             conn.commit()
 
@@ -798,7 +895,7 @@ def cmd_list():
     conn = init_db()
     c = conn.cursor()
     c.execute("""SELECT a.sec_uid, a.nickname, a.added_at, a.last_check, s.follower_count,
-                        s.total_favorited, s.aweme_count, s.checked_at
+                        s.total_favorited, s.aweme_count, s.checked_at, COALESCE(a.tier,'S')
                  FROM accounts a LEFT JOIN snapshots s ON s.id = (
                     SELECT id FROM snapshots WHERE sec_uid=a.sec_uid AND ok=1 ORDER BY id DESC LIMIT 1)
                  WHERE a.active=1 ORDER BY a.added_at""")
@@ -806,9 +903,184 @@ def cmd_list():
     if not rows:
         print("监控名单为空。")
     for r in rows:
-        print(f"• {r[1] or '?'}  ({r[0]})")
+        print(f"• [{r[8]}] {r[1] or '?'}  ({r[0]})")
         print(f"  粉丝 {r[4]} | 获赞 {r[5]} | 作品 {r[6]}")
         print(f"  加入 {r[2]} | 上次巡查 {r[3]} | 数据时间 {r[7]}")
+    conn.close()
+    return 0
+
+
+def _to_date(s: str):
+    from datetime import date
+    try:
+        return date(*map(int, s[:10].split('-')))
+    except Exception:
+        return None
+
+
+def load_pinned() -> set:
+    """人工确认为「重点」的 sec_uid，不参与自动降频。
+
+    来源：09:00 任务的 S 级出海服务名单（s_watchlist.json）。
+    为什么需要：自动降频只看「作品数有没有涨」，但有些业务重点号低频发帖却持续聚集需求
+    （典型：物流/清关/园区服务号），不能因为安静就被降频——那正是最该盯的对象。
+    读取失败（文件不存在/格式变）时返回空集，降级为纯自动判定，不阻断流程。
+    """
+    try:
+        d = json.load(open(Path.home() / ".workbuddy/douyin_analysis/_archive/s_watchlist.json"))
+        return {a['sec_uid'] for a in d.get('accounts', []) if a.get('sec_uid')}
+    except Exception:
+        return set()
+
+
+def compute_auto_tier(c, today=None) -> dict:
+    """按「作品数(aweme_count)停顿天数」计算建议分层。
+
+    返回 {sec_uid: (tier, 观察天数, 静止天数, 最后更新日)}
+    判定依据是 snapshots 表里 aweme_count 的**变化**（不是绝对值）——
+    该字段是抖音主页硬数据，每天巡查必采，不受详情页抓取与否影响，
+    比 publish_time（40/81 为 NULL）和 signature（补齐率低）都可靠。
+    """
+    from datetime import date as _date
+    today = today or _date.today()
+    pinned = load_pinned()
+    rows = list(c.execute("""SELECT sec_uid, checked_at, aweme_count FROM snapshots
+                             WHERE ok=1 ORDER BY sec_uid, id"""))
+    hist = {}
+    for u, t, a in rows:
+        hist.setdefault(u, []).append(((t or '')[:10], a))
+    out = {}
+    for u, seq in hist.items():
+        last_change = None
+        for i in range(1, len(seq)):
+            if seq[i][1] != seq[i - 1][1] and seq[i][1] is not None:
+                last_change = seq[i][0]
+        d0 = _to_date(seq[0][0])
+        obs = (today - d0).days if d0 else 0
+        dc = _to_date(last_change) if last_change else None
+        idle = (today - dc).days if dc else obs
+        if u in pinned:
+            t_ = 'S'          # 人工确认的重点号：永不自动降频
+        elif obs < TIER_NEW_DAYS:
+            t_ = 'S'          # 新号观察期：变化快，先密集盯
+        elif idle <= TIER_A_IDLE:
+            t_ = 'S'          # 近 7 天有更新
+        elif idle <= TIER_B_IDLE:
+            t_ = 'A'          # 停顿 7~21 天
+        else:
+            t_ = 'B'          # 停顿 21 天以上
+        out[u] = (t_, obs, idle, last_change or '')
+    return out
+
+
+def cmd_tier(arg1: str | None = None, arg2: str | None = None,
+             use_auto: bool = False, apply: bool = False):
+    conn = init_db()
+    c = conn.cursor()
+
+    # ── 手动指定：tier <sec_uid> <S|A|B> ──────────────────────────────
+    if arg1 and arg2:
+        lv = arg2.strip().upper()
+        if lv not in TIER_CYCLE:
+            print(f"❌ tier 只能是 {' / '.join(TIER_CYCLE)}")
+            conn.close()
+            return 1
+        row = c.execute("SELECT nickname FROM accounts WHERE sec_uid=?", (arg1,)).fetchone()
+        if not row:
+            print(f"❌ 名单里没有这个 sec_uid：{arg1}")
+            conn.close()
+            return 1
+        c.execute("UPDATE accounts SET tier=? WHERE sec_uid=?", (lv, arg1))
+        # 同步排期，避免 tier 与 next_check 打架：
+        # 若不改，把某账号手动升到 S 后，它可能还挂着 3 天后的排期 —— 手动命令说的
+        # 是「现在就要它每天巡」，排期却说得「3 天后见」，行为与意图相反。
+        # 升到 S → 清空排期（立即到期，下次运行就巡）；降到 A/B → 从今天起算一个周期。
+        if lv == 'S':
+            c.execute("UPDATE accounts SET next_check=NULL WHERE sec_uid=?", (arg1,))
+            _when = "下次巡查时立即到期"
+        else:
+            c.execute("""UPDATE accounts SET next_check=date('now','localtime',?)
+                         WHERE sec_uid=?""", (f'+{TIER_CYCLE[lv]} days', arg1))
+            _when = f"排期至 {TIER_CYCLE[lv]} 天后"
+        conn.commit()
+        print(f"✅ {row[0]} → {lv}（{TIER_CYCLE[lv]} 天一轮，{_when}）")
+        conn.close()
+        return 0
+
+    # ── 自动重算：tier --auto [--apply] ──────────────────────────────
+    if use_auto:
+        sug = compute_auto_tier(c)
+        nm = {r[0]: (r[1], r[2]) for r in c.execute("SELECT sec_uid, nickname, COALESCE(tier,'S') FROM accounts")}
+        changes = []
+        for u, (nt, obs, idle, lc) in sug.items():
+            if u not in nm:
+                continue
+            old = nm[u][1]
+            if old != nt:
+                changes.append((u, nm[u][0], old, nt, obs, idle))
+        from collections import Counter
+        dist = Counter(v[0] for v in sug.values())
+        pinned = load_pinned()
+        n_pin = len([u for u in sug if u in pinned])
+        print("=== 自动分层建议（按作品数停顿天数）===")
+        print(f"  S(每天)={dist['S']}  A(3天一轮)={dist['A']}  B(7天一轮)={dist['B']}")
+        if n_pin:
+            print(f"  其中 {n_pin} 个是 S 级重点名单成员，已强制留在 S 不参与降频。")
+        daily = dist['S'] + dist['A'] * 0.5 + dist['B'] / 7
+        print(f"  日均巡查≈{daily:.1f} 个（全员 {len(sug)} 个）")
+        if changes:
+            print(f"\n  与当前 tier 不同：{len(changes)} 个")
+            for u, nick, o, n_, obs, idle in sorted(changes, key=lambda x: x[4]):
+                print(f"    {str(nick)[:26]:28s} {o}→{n_}  (观察{obs}天/静止{idle}天)")
+        else:
+            print("\n  与当前 tier 一致，无需变更。")
+        if not apply:
+            print("\n  ⚠️ 这是预演，未写入。确认无误后加 --apply 生效：")
+            print("     python3 monitor.py tier --auto --apply")
+        else:
+            from datetime import date as _d, timedelta
+            base = _d.today()
+            # 先把 S 级统一排到明天：否则 next_check 为 NULL 的账号会在 apply 当天
+            # 立刻变成「全部到期」，下一次手动 run 会把 81 个账号全部重巡一遍。
+            c.execute("""UPDATE accounts SET next_check=date('now','localtime','+1 days')
+                         WHERE active=1 AND COALESCE(tier,'S')='S'""")
+            seq = {}
+            for u, nick, o, n_, obs, idle in changes:
+                c.execute("UPDATE accounts SET tier=? WHERE sec_uid=?", (n_, u))
+                cyc = TIER_CYCLE[n_]
+                # 错峰：同层账号依次排到未来第 1..cyc 天，避免「降频后仍集体同天到期」
+                # （不做错峰的话，24 个 A 级会在 3 天后同一天全部到期，那天照旧 81 个，白降）。
+                k = seq.get(n_, 0)
+                seq[n_] = k + 1
+                nd = base + timedelta(days=(k % cyc) + 1)
+                c.execute("UPDATE accounts SET next_check=? WHERE sec_uid=?", (nd.isoformat(), u))
+            conn.commit()
+            print(f"\n  ✅ 已写入 {len(changes)} 个账号的新分层，并错峰排期。")
+            print("     S 级明日巡查；A/B 级按错峰分别排入未来 3 / 7 天内。")
+        conn.close()
+        return 0
+
+    # ── 报表：tier ───────────────────────────────────────────────────
+    rows = list(c.execute("""SELECT COALESCE(tier,'S'), count(*) FROM accounts
+                             WHERE active=1 GROUP BY COALESCE(tier,'S')"""))
+    d = {r[0]: r[1] for r in rows}
+    total = sum(d.values())
+    print("=== 巡查分层现状 ===")
+    for lv in ['S', 'A', 'B']:
+        if d.get(lv):
+            print(f"  {lv}（{TIER_CYCLE[lv]} 天一轮）: {d[lv]} 个")
+    for lv, n in d.items():
+        if lv not in TIER_CYCLE:
+            print(f"  ?（未知 tier「{lv}」，按每天处理）: {n} 个")
+    est = d.get('S', 0) + d.get('A', 0) * (1 / 3) + d.get('B', 0) * (1 / 7)
+    print(f"  合计 {total} 个 → 日均巡查≈{est:.1f} 个（全量则为 {total} 个）")
+    print("\n各层账号：")
+    for lv in ['S', 'A', 'B']:
+        names = [f"{r[1] or '?'}" for r in
+                 c.execute("""SELECT sec_uid, nickname FROM accounts
+                              WHERE active=1 AND COALESCE(tier,'S')=?""", (lv,))]
+        if names:
+            print(f"  [{lv}] {len(names)}: " + " · ".join(names))
     conn.close()
     return 0
 
@@ -1044,15 +1316,39 @@ def main():
         print(__doc__)
         sys.exit(1)
     cmd = sys.argv[1]
-    args = sys.argv[2:]
-    no_comments = '--no-comments' in args
-    args = [a for a in args if not a.startswith('--')]
+    raw = sys.argv[2:]
+    no_comments = '--no-comments' in raw
+    all_accounts = '--all' in raw
+    use_auto = '--auto' in raw
+    do_apply = '--apply' in raw
+    args = [a for a in raw if not a.startswith('--')]
     if cmd == 'add' and args:
         sys.exit(cmd_add(args[0]))
     elif cmd == 'run':
-        sys.exit(cmd_run(args[0] if args else None, fetch_comments=not no_comments))
+        # 【坑 25】2026-09-22：Chrome 页面连接会中途断开（PageDisconnectedError），
+        # 旧代码直接抛栈退出，8 分钟只巡了 13 个账号就全盘中断。
+        # 已巡完的账号 next_check 已推进，重跑会自动跳过 → 这里自动重试即可续跑，不需人工干预。
+        _rc = 0
+        for _attempt in range(1, 6):
+            try:
+                _rc = cmd_run(args[0] if args else None, fetch_comments=not no_comments,
+                              all_accounts=all_accounts)
+                break
+            except Exception as _e:
+                if 'Disconnect' not in type(_e).__name__ and 'Disconnect' not in str(_e):
+                    raise
+                print(f"\n⚠️  浏览器连接断开（第 {_attempt} 次），20 秒后自动续跑剩余账号…")
+                time.sleep(20)
+        else:
+            print("\n❌ 连续 5 次浏览器断连，本轮提前终止（已巡账号数据已入库）")
+            _rc = 1
+        sys.exit(_rc)
     elif cmd == 'list':
         sys.exit(cmd_list())
+    elif cmd == 'tier':
+        sys.exit(cmd_tier(args[0] if args else None,
+                          args[1] if len(args) > 1 else None,
+                          use_auto=use_auto, apply=do_apply))
     elif cmd == 'report' and args:
         sys.exit(cmd_report(args[0]))
     elif cmd == 'detail' and args:
