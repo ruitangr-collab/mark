@@ -185,12 +185,19 @@ def safe_dir_name(name: str) -> str:
 # ─── 主流程 ────────────────────────────────────────────────────────────
 def main():
     if len(sys.argv) < 2:
-        print("用法: python3 account_analyzer.py \"<抖音链接或分享口令>\" [max_videos] [--minimized]")
+        print("用法: python3 account_analyzer.py \"<抖音链接或分享口令>\" [max_videos] [--minimized] [--expect \"<期望昵称>\"]")
         sys.exit(1)
 
     raw_input = sys.argv[1]
     max_videos = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else 20
     minimized = '--minimized' in sys.argv
+    # --expect "<昵称>"：串号防护。若主页解析出的昵称与之不符，直接失败退出，
+    # 不写任何文件。用于多任务并发共用同一 Chrome profile 时防止静默写错账号。
+    expect = None
+    if '--expect' in sys.argv:
+        i = sys.argv.index('--expect')
+        if i + 1 < len(sys.argv):
+            expect = sys.argv[i + 1]
 
     url = extract_url(raw_input)
     if not url:
@@ -198,17 +205,26 @@ def main():
         sys.exit(1)
     print(f"[0] 识别到链接: {url}")
 
-    PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+    # 并发隔离：DOUYIN_PROFILE_DIR / DOUYIN_DEBUG_PORT 可让本进程使用独立的
+    # Chrome profile 与调试端口，避免与其它抖音任务抢同一个浏览器实例（串号）。
+    import os
+    profile_dir = Path(os.environ.get('DOUYIN_PROFILE_DIR') or PROFILE_DIR)
+    debug_port = os.environ.get('DOUYIN_DEBUG_PORT')
+
+    profile_dir.mkdir(parents=True, exist_ok=True)
     co = ChromiumOptions()
     co.set_argument('--disable-blink-features=AutomationControlled')
     co.set_argument('--disable-dev-shm-usage')
     co.set_argument('--no-sandbox')
     co.set_argument('--disable-gpu')
     co.set_argument('--window-size=1920,1080')
-    co.set_argument(f'--user-data-dir={PROFILE_DIR}')
+    co.set_argument(f'--user-data-dir={profile_dir}')
+    if debug_port:
+        co.set_local_port(int(debug_port))
     if minimized:
         co.set_argument('--start-minimized')
     co.headless(False)
+    print(f"[env] profile={profile_dir} port={debug_port or 'default(9222)'}")
 
     page = ChromiumPage(co)
     try:
@@ -256,6 +272,18 @@ def main():
         info = extract_account_from_homepage(page)
         info['sec_uid'] = sec_uid
         print(f"    账号: {info.get('nickname', '?')}")
+
+        # 串号防护 1：主页 URL 必须仍是目标 sec_uid（防被重定向到推荐流/别的账号）
+        if sec_uid not in (page.url or ''):
+            print(f"❌ 串号防护：当前页面已不是目标主页（page.url={page.url}），中止且不写文件")
+            sys.exit(2)
+
+        # 串号防护 2：昵称必须与 --expect 一致
+        if expect:
+            got = (info.get('nickname') or '').strip()
+            if expect not in got and got not in expect:
+                print(f"❌ 串号防护：期望账号「{expect}」，实际解析到「{got}」，中止且不写文件")
+                sys.exit(2)
         if info.get('signature'):
             print(f"    签名: {info['signature'][:60]}")
         print(f"    粉丝: {info.get('follower_count', '?')} | 获赞: {info.get('total_favorited', '?')} | 作品: {info.get('aweme_count', '?')}")
@@ -276,19 +304,48 @@ def main():
                       f, ensure_ascii=False, indent=2)
 
         all_comments = []
+        discarded = 0
+        done_vids = []
+        crashed = None
         print(f"\n[4] 开始提取 {len(video_ids)} 个视频的评论...")
         for i, vid in enumerate(video_ids, 1):
             print(f"\n  📹 [{i}/{len(video_ids)}] {vid}")
-            page.get(f"https://www.douyin.com/video/{vid}")
-            time.sleep(5)
-            for _ in range(60):
-                page.scroll.down(400)
-                time.sleep(0.2)
-            comments = extract_comments_from_page(page)
+            try:
+                page.get(f"https://www.douyin.com/video/{vid}")
+                time.sleep(5)
+                # 串号防护 3：进入视频页后确认确实停在目标视频上
+                if vid not in (page.url or ''):
+                    print(f"    ⚠️ 串号防护：页面已跳离目标视频（page.url={page.url}），丢弃该视频")
+                    discarded += 1
+                    continue
+                for _ in range(60):
+                    page.scroll.down(400)
+                    time.sleep(0.2)
+                # 串号防护 4：提取前再次确认仍在该视频页（防滚动期间被其它进程抢走）
+                if vid not in (page.url or ''):
+                    print(f"    ⚠️ 串号防护：滚动期间页面被抢走（page.url={page.url}），丢弃该视频")
+                    discarded += 1
+                    continue
+                comments = extract_comments_from_page(page)
+            except Exception as e:
+                # 抖音视频页偶发 renderer 崩溃（PageDisconnectedError）。
+                # 不再整轮作废：保留已抓到的视频，用已落盘的分片聚合出结果。
+                crashed = f"{type(e).__name__}: {str(e).strip()[:80]}"
+                print(f"    ⚠️ 视频页异常（{crashed}），保留已抓到的 {len(done_vids)} 个视频")
+                break
             print(f"    提取到 {len(comments)} 条")
             with open(OUTPUT_DIR / f"video_{vid}_comments.json", 'w', encoding='utf-8') as f:
                 json.dump(comments, f, ensure_ascii=False, indent=2)
             all_comments.extend(comments)
+            done_vids.append(vid)
+
+        # 有效视频数过低说明本轮被并发任务严重干扰，判为失败不写结果
+        if len(done_vids) < max(5, len(video_ids) // 2):
+            print(f"\n❌ 有效视频仅 {len(done_vids)}/{len(video_ids)}（丢弃 {discarded}，崩溃 {crashed}），"
+                  f"判为失败不写 meta/all_comments，请重跑")
+            sys.exit(3)
+        if crashed:
+            print(f"\n⚠️ 本轮因视频页异常提前结束（{crashed}），已保留 {len(done_vids)}/{len(video_ids)} 个视频")
 
         final = list(dict.fromkeys(all_comments))
         with open(OUTPUT_DIR / "all_comments.json", 'w', encoding='utf-8') as f:
@@ -299,6 +356,9 @@ def main():
                 "account": info.get('nickname'),
                 "sec_uid": sec_uid,
                 "video_ids": video_ids,
+                "videos_done": len(done_vids),
+                "partial": bool(crashed),
+                "crash": crashed,
                 "comment_count": len(final),
                 "run_time": time.strftime("%Y-%m-%d %H:%M:%S"),
             }, f, ensure_ascii=False, indent=2)

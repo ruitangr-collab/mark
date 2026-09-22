@@ -377,6 +377,25 @@ SQLite：`data/monitor.db`
    GROUP BY a.nickname;
    ```
 
+   ⚠️ **2026-09-23 补：比对「作品数增量」的 CTE 必须加 `ok=1` 过滤，否则会假性漏报。**
+   `snapshots` 里存在 `ok=0` 的空值快照（页面异常那次留下的，`aweme_count` 为 NULL），
+   若 `prev` 子查询取到它，`c.aweme_count - p.aweme_count` 变成 NULL，
+   该账号**直接整条从结果里消失**，看起来就像「作品数没涨 = 漏报」。
+   实测本轮欧万海运的 prev 是 09-22 的 ok=0 快照 → 第一轮比对完全看不到它的 +2，
+   误判为「入队 24 vs 增量 17，差 7 条」，加上 `AND s.ok=1` 后正好对上 23。
+   → 正确写法（**两个 CTE 都要加**）：
+   ```sql
+   WITH cur AS (SELECT sec_uid, aweme_count FROM snapshots
+                WHERE date(checked_at)='<本轮日>' AND ok=1),
+   prev AS (SELECT s.sec_uid, s.aweme_count FROM snapshots s WHERE s.ok=1
+            AND s.checked_at=(SELECT MAX(checked_at) FROM snapshots s2
+                WHERE s2.sec_uid=s.sec_uid AND date(s2.checked_at)<'<本轮日>' AND s2.ok=1))
+   SELECT a.nickname, p.aweme_count AS 前, c.aweme_count AS 后,
+          c.aweme_count-p.aweme_count AS 增量
+   FROM cur c JOIN prev p ON p.sec_uid=c.sec_uid JOIN accounts a ON a.sec_uid=c.sec_uid
+   WHERE c.aweme_count-p.aweme_count != 0 ORDER BY 增量 DESC;
+   ```
+
 15. **有「首次巡查」账号时，`discovered_at` 过滤会被基线条目淹没（2026-09-07 补）**
    上面模板里的 `seen_count=1 AND notified=0` 是**必须的**，不要只写 `discovered_at >= 本轮开始`。
    实测 2026-09-07 那轮：只按 `discovered_at` 过滤得到 **456 条**，
@@ -459,6 +478,13 @@ SQLite：`data/monitor.db`
    - ⚠️ **aweme_id 前缀仍是第一道快筛**：当前正常作品前缀为 `768x`/`769x`，
      出现 `759x`/`758x`/`763x`/`764x` 等明显偏小的前缀，直接优先怀疑坑 21。
      （2026-09-21 木木这条前缀 7597，一眼可疑，补抓后果然是 8 个月前的老作品。）
+   - **2026-09-23 第 6 次复发**：非洲信盟物流 `7583338073250401576`，
+     实为 **2025-12-13** 发布的「孙颖莎因脚伤退出比赛」，**1173 赞 / 46 藏 / 34 转**。
+     该账号 baseline_digg=2 → 不剔除会被判成 **586x 超级爆款**（本轮真实最高只有 5.48x）。
+     前缀 7583 同样一眼可疑。已剔除并单独补跑 `monitor.py run <sec_uid>` 确认非漏报。
+   - ⚠️ **补跑仍「无新作品」时的含义**：若该 +1 是滚动加载深度变化造成的老作品入队，
+     补跑后数据库内已有的最新 aweme_id 仍早于本轮，即可确认**无真新作品、非漏报**，
+     不要在报告里凭 +1 编造一条新作品。
 
 22. **`baseline_digg` 会被早期爆款永久拉高，导致后期倍数系统性偏低（2026-09-21 补）**
    `cmd_backfill` 算的是**该账号全部作品**的点赞中位数。若账号早期出过爆款、
@@ -578,6 +604,21 @@ python3 scripts/discover_services.py "非洲考察团,非洲物流"  # 指定关
     不看粉丝量**。若主体偏货主/实业但确有对外服务，可先入库 A*、标注「待首轮评论复核」，不轻易回滚。
 - ⚠️ **卡片获赞可能解析成天文数字（2026-09-05 发现，已修）**：搜索卡片 `likes` 偶发解析为
   1e12~1e17 级脏值（粉丝值正常）。已加防御：>10 亿视为失败写 NULL（等 4:00 巡查重建），md 显示 `?`。
+- 🔴 **非洲锚点硬门槛（2026-09-22 新增，最高优先级判定）**：旧的 `ZONE_AMBIGUOUS_WORDS → AFRICA_CTX_WORDS`
+  校验**被绕过过一次**——它只在「命中的强词**全部**是园区类」时才校验非洲语境，只要混进
+  `物流/服务/对接` 任意一个非模糊词就直接放行。
+  - 踩坑实例（2026-09-22，关键词「非洲产业园招商」）：**大湾区数字产业服务平台**（28.7万/广东、
+    hits=招商+对接+产业园+服务）、**临沂商城国际电子商务产业园**（2.6万/山东、hits=物流+产业园+服务）、
+    **侯马开发区新田智联信创产业园**（1.0万/山西、hits=物流+产业园+服务）——三者 `countries` 均为空、
+    签名零非洲属性，却全部自动入库，靠人工回滚。
+  - 现行规则（`is_strong_service`，勿改回）：
+    1. 命中 EXCLUDE_WORDS → 否；未命中任何 STRONG_WORDS → 否。
+    2. **有非洲锚点**（`AFRICA_ANCHOR_WORDS`：非洲/中非/北非/西非/东非/南非/撒哈拉/任一非洲国家名）→ 放行。
+    3. **无锚点** → 必须同时具备 ① `CROSS_BORDER_SERVICE_WORDS`（货代/清关/双清/海外仓/专线/海运/空运/
+       订舱/报关/考察团/落地服务/签证/ECTN/COC/PVOC/拼柜/整柜）② `CROSS_BORDER_CTX_WORDS`
+       （跨境/外贸/出口/国际/出海/海外/全球/门到门/到门）——**二者缺一不可**。
+  - 复核口诀新增一条：**先看有没有非洲锚点，没有锚点的国内园区/招商号一律回滚，
+    不要因为它同时命中了「物流/服务」就放行。**
   若再见到快照里 total_favorited 为天文数字，即此坑复发，检查 parse_card_text。
 - ⚠️ **like 脏值防御线偏松（2026-09-09 发现 / 2026-09-11 复发）**：>10 亿只拦得住万亿级脏值，
   **亿级、千万级脏值照样漏网**——09-09「中九在非洲」1.99 亿（8324 粉）、09-11「加纳 安哥拉 海运找李瑞」

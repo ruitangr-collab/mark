@@ -57,7 +57,10 @@ def main():
         park = by_canon.get(v["canonical"])
         if park is None:
             continue
-        was_unmarked = park.get("douyin_found") is None
+        # 注意：新入库园区的 douyin_found 常为空字符串 ""，用 is None 判断会漏标 →
+        # 统一按「假值」（None/''/未设）判定为未标记，否则账号回填了但 douyin_found 永远为空，
+        # 下轮 reconcile 会把它重复列进反向补搜种子。
+        was_unmarked = not park.get("douyin_found")
 
         existing = {a["sec_uid"]: a for a in (park.get("douyin_accounts") or [])}
         for acc in v.get("accounts", []):
@@ -90,7 +93,7 @@ def main():
                 watch_added.append(f"{v['canonical']} / {acc.get('nickname')} ({role})")
 
         park["douyin_accounts"] = list(existing.values())
-        if was_unmarked:
+        if was_unmarked or not park.get("douyin_found"):
             park["douyin_found"] = "yes" if existing else "no"
             park["douyin_found_date"] = TODAY
             backfilled.append(

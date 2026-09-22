@@ -143,6 +143,31 @@ def competing_park(acc: dict, target: dict, refs: list[dict], country: list[str]
     return None
 
 
+def account_country_conflict(acc: dict, ref: dict) -> bool:
+    """账号国别与园区国别冲突判定（2026-09-17 新增）。
+
+    背景：项目名层面匹配成功（如抖音项目组「中达工业园」）时，整组账号会被一并挂到园区。
+    若组内某账号的昵称/签名**明确写了另一个非洲国家**、且**不含园区专名、也不含园区所在国**，
+    说明是项目组打包带来的串号（实测：乌干达「盛唐机械」被挂进坦桑尼亚中达工业园）。
+    这类账号必须剔出，否则会让「抖音无号」的园区被伪造成「有号」。
+    """
+    text = f"{acc.get('nickname') or ''} {acc.get('signature') or ''}"
+    rc = (ref.get('country') or '').strip()
+    if not text.strip() or not rc:
+        return False
+    # 命中园区专名（≥3字）→ 强证据，不判冲突
+    for k in ref.get('_keys', []):
+        if len(k) >= 3 and k in text:
+            return False
+    def _same(c: str) -> bool:
+        return c in rc or rc in c or (len(c) >= 2 and len(rc) >= 2 and c[:2] == rc[:2])
+    # 文本出现与园区国别兼容的国家词 → 不冲突
+    if rc in text or any((c in text and _same(c)) for c in COUNTRIES):
+        return False
+    # 文本只出现不兼容的非洲国家 → 判冲突
+    return any((c in text and not _same(c)) for c in COUNTRIES)
+
+
 def reassign_misattributed(verified: dict, refs: list[dict]) -> list[dict]:
     """扫描已核验园区的账号，把串号的账号迁到其真正所属的园区。返回迁移记录。"""
     moves = []
@@ -151,7 +176,7 @@ def reassign_misattributed(verified: dict, refs: list[dict]) -> list[dict]:
         target = next((x for x in refs if x['canonical'] == canon), None)
         if target is None:
             continue
-        keep, moved = [], 0
+        keep, moved_map = [], {}
         for a in rec['accounts']:
             other = competing_park(a, target, refs, [rec.get('country')])
             if other is None:
@@ -160,10 +185,11 @@ def reassign_misattributed(verified: dict, refs: list[dict]) -> list[dict]:
             dest = verified.setdefault(other['canonical'], mk_rec(other))
             dest['accounts'].append(a)
             dest['_raw_names'].append(f"{canon}(串号纠正)")
-            moved += 1
-        if moved:
+            moved_map[other['canonical']] = moved_map.get(other['canonical'], 0) + 1
+        if moved_map:
             rec['accounts'] = keep
-            moves.append({'from': canon, 'to': other['canonical'], 'count': moved})
+            for dest_canon, cnt in moved_map.items():
+                moves.append({'from': canon, 'to': dest_canon, 'count': cnt})
     return moves
 
 
@@ -205,6 +231,19 @@ def main():
     def account_of(p):
         return p.get('accounts', []) or [{'nickname': p.get('project')}]
 
+    misfits = []   # 2026-09-17：项目组打包导致的国别串号账号
+
+    def split_by_country(accs, ref):
+        """把国别明显冲突的账号从项目中剔出，返回 (保留, 剔除)"""
+        keep, drop = [], []
+        for a in accs:
+            (drop if account_country_conflict(a, ref) else keep).append(a)
+        for a in drop:
+            misfits.append({'nickname': a.get('nickname'), 'sec_uid': a.get('sec_uid'),
+                            'park': ref['canonical'], 'park_country': ref.get('country'),
+                            'why': '账号昵称/签名指向其他非洲国家，与园区国别不符'})
+        return keep, drop
+
     for p in projs:
         raw = p['project']
         ctry = p.get('countries') or []
@@ -218,8 +257,9 @@ def main():
             if r:
                 verified.setdefault(key, mk_rec(r))
                 rec = verified[key]
-                rec['douyin_hits'] += p['account_count']
-                rec['accounts'].extend(accs)
+                _k, _d = split_by_country(accs, r)
+                rec['douyin_hits'] += p['account_count'] - len(_d)
+                rec['accounts'].extend(_k)
                 rec['_raw_names'].append(raw)
                 continue
 
@@ -234,8 +274,9 @@ def main():
             key = sp['canonical']
             verified.setdefault(key, mk_rec(sp))
             rec = verified[key]
-            rec['douyin_hits'] += p['account_count']
-            rec['accounts'].extend(accs)
+            _k, _d = split_by_country(accs, sp)
+            rec['douyin_hits'] += p['account_count'] - len(_d)
+            rec['accounts'].extend(_k)
             rec['_raw_names'].append(raw)
             continue
 
@@ -260,8 +301,9 @@ def main():
             key = pr['canonical']
             verified.setdefault(key, mk_rec(pr))
             rec = verified[key]
-            rec['douyin_hits'] += p['account_count']
-            rec['accounts'].extend(accs)
+            _k, _d = split_by_country(accs, pr)
+            rec['douyin_hits'] += p['account_count'] - len(_d)
+            rec['accounts'].extend(_k)
             rec['_raw_names'].append(raw)
             continue
 
@@ -276,9 +318,10 @@ def main():
             continue
 
         # 5) 仅抖音线索（名称归一后合并）
-        key = norm_douyin_name(raw)
+        key = norm_douyin_name(raw) or raw
         rec = douyin_map.setdefault(key, {
-            'project': key, 'raw_names': [], 'country': list(dict.fromkeys(ctry)),
+            'project': key, 'name': key, 'canonical': '', 'raw_names': [],
+            'country': list(dict.fromkeys(ctry)),
             'type': p.get('types', []), 'douyin_hits': 0, 'accounts': []})
         rec['douyin_hits'] += p['account_count']
         rec['raw_names'].append(raw)
@@ -325,6 +368,64 @@ def main():
     for c in merged_from_ref:
         print(f"   ⤵ 基准库并入：{c}（账号来自历史补搜，本轮泛搜未复现）")
 
+    # 5.5) 仅抖音线索二次合并：抖音侧同一个项目常被切成多个残名条目
+    #     （如「雅普化工工业园」与「范围主要从事化工工业园」），ds 造成计数虚高。
+    #     判据：① 名字互为包含关系（长度≥4）② 账号 sec_uid 集合有交集
+    #     两者居其一即合并到更长更完整的名字上。
+    def _merge_douyin_map(dmap):
+        keys = sorted(dmap.keys(), key=len, reverse=True)
+        merged = []
+        for k in list(keys):
+            if k not in dmap:
+                continue
+            for other in keys:
+                if other == k or other not in dmap:
+                    continue
+                if len(other) >= len(k):
+                    continue
+                same_entity = (len(other) >= 4 and other in k)
+                if not same_entity:
+                    su_k = {a.get('sec_uid') for a in dmap[k]['accounts'] if a.get('sec_uid')}
+                    su_o = {a.get('sec_uid') for a in dmap[other]['accounts'] if a.get('sec_uid')}
+                    same_entity = bool(su_k and su_o and (su_k & su_o))
+                if same_entity:
+                    tgt = dmap[k]
+                    tgt['raw_names'].extend(dmap[other].get('raw_names', []) or [other])
+                    tgt['accounts'].extend(dmap[other]['accounts'])
+                    tgt['country'] = list(dict.fromkeys(tgt['country'] + dmap[other]['country']))
+                    merged.append(f"{other} → {k}")
+                    del dmap[other]
+        for rec in dmap.values():
+            rec['raw_names'] = list(dict.fromkeys(rec.get('raw_names') or []))
+            seen, accs = set(), []
+            for a in rec['accounts']:
+                s = a.get('sec_uid')
+                if s and s in seen:
+                    continue
+                if s:
+                    seen.add(s)
+                accs.append(a)
+            rec['accounts'] = accs
+            rec['douyin_hits'] = len(accs)
+        return merged
+
+    for m in _merge_douyin_map(douyin_map):
+        print(f"   ⇢ 线索合并：{m}")
+
+    # 5.6) 空壳剔除：账号被串号纠正/国别剔除搬空后，园区不应继续挂「已核验」的名义，
+    #      否则会在主清单里留下 0 账号的假条目，并让真正待补搜的园区永久不进种子池。
+    emptied = []
+    for canon in list(verified.keys()):
+        rec = verified[canon]
+        if not rec.get('accounts') and not rec.get('from_reference_db'):
+            verified.pop(canon)
+            emptied.append(canon)
+    for c in emptied:
+        print(f"   ⌀ 空壳剔除（0 账号，回落待补搜）：{c}")
+
+    for mf in misfits:
+        print(f"   ✂ 国别冲突剔除：{mf['nickname']} ← {mf['park']}（{mf['park_country']}）")
+
     douyin_only = sorted(douyin_map.values(), key=lambda x: -x['douyin_hits'])
 
     out = {
@@ -336,7 +437,9 @@ def main():
             'noise_filtered': len(noise),
             'reference_parks_not_found_on_douyin': len([r for r in refs if r['canonical'] not in verified]),
             'reference_parks_pending_reverse_search': len([r for r in refs if r['canonical'] not in verified and not r.get('douyin_found')]),
+            'country_misfit_accounts_dropped': len(misfits),
         },
+        'country_misfits': misfits,
         'verified': sorted(verified.values(), key=lambda x: (x['evidence_level'], -x['douyin_hits'])),
         'douyin_only': douyin_only,
         'noise': noise,

@@ -16,7 +16,7 @@ const rules = [
   { keywords: ["爆款文稿"], type: "爆款文稿", code: "BK" },
   { keywords: ["推文"], type: "推文素材", code: "POST" },
   { keywords: ["其他作者"], type: "外部研究素材", code: "EXT" },
-  { keywords: ["dontbesilent"], type: "本人内容", code: "USER" },
+  { keywords: ["破雾"], type: "本人内容", code: "USER" },
 ];
 
 function walk(dir) {

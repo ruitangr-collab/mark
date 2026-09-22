@@ -1,6 +1,8 @@
 ---
 name: douyin-video-script
-description: 基于策略 JSON 生成抖音短视频分镜脚本。当用户提供了出海/品牌策略文档（JSON 格式），并要求撰写具体视频脚本时触发。自动完成：读取策略文档 → 匹配选题 → 生成带时间戳的分镜脚本 → 去 AI 味处理 → 输出可交付的 Markdown 脚本文件。
+description: 基于策略 JSON 生成抖音短视频分镜脚本。当用户提供了出海/品牌策略文档（JSON
+  格式），并要求撰写具体视频脚本时触发。自动完成：读取策略文档 → 匹配选题 → 生成带时间戳的分镜脚本 → 去 AI 味处理 → 输出可交付的
+  Markdown 脚本文件。
 agent_created: true
 ---
 
@@ -159,7 +161,7 @@ agent_created: true
 
 ### Step 4：去 AI 味处理
 
-脚本初稿完成后，**必须**调用 `humanizer` 技能（路径：`/Users/goterra/.workbuddy/plugins/marketplaces/experts/plugins/douyin-strategist/skills/humanizer`）对脚本中的所有口播文案进行去 AI 味处理。
+脚本初稿完成后，**必须**对脚本中的所有口播文案进行去 AI 味处理。若当前环境已安装 `humanizer` 技能，直接调用它处理；若未安装，则按下方「去 AI 味的核心原则」手动完成去 AI 味改写。
 
 具体操作：
 1. 提取脚本中所有「文案（字幕）」列的文字内容

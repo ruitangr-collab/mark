@@ -38,9 +38,15 @@ douyin-comment-analyzer/
 ├── SKILL.md            # 本文件
 ├── scripts/
 │   ├── common.py       # 公共模块（解码/登录/评论提取/过滤，2026-09 抽取）
+│   │                   #   ⚠️ 单一来源：CONTROL_WORDS / PLAYER_WORDS / TOPIC_STOPWORDS /
+│   │                   #      is_ui_residue()，分析类脚本一律从这里 import，勿各写一份
 │   ├── extract.py     # 评论提取脚本（账号维度，登录态持久化）
 │   ├── keyword_extract.py  # 评论提取脚本（关键词/话题维度）
 │   ├── account_analyzer.py # 链接入口脚本（丢链接→账号分析，2026-09 新增）
+│   ├── login_probe.py  # 登录态探针（几秒返回 LOGIN_OK / LOGIN_EXPIRED）
+│   ├── gen_daily_run.py     # 由 s_watchlist.json 生成当日串行抓取脚本（2026-09-17 新增）
+│   ├── demand_density.py    # 跨账号需求密度（账号分级核心指标，全量口径）
+│   ├── daily_digest.py      # 当日摘要（第7步汇报，10 数据集口径，2026-09-17 新增）
 │   ├── build_archive_docs.py # 归档文档生成器（4类文档，2026-09 新增）
 │   └── analyze.py     # 话题分析脚本（分词+统计+报告）
 └── profiles/
@@ -93,7 +99,6 @@ douyin-comment-analyzer/
 - 典型场景：手机端看到讲出海非洲/非洲创业的号 → 丢链接过来 → 直接出账号分析
 
 ### 第三步：生成归档文档（监控体系数据层）
-
 ```bash
 /Users/goterra/.workbuddy/binaries/python/envs/default/bin/python3 \
   scripts/build_archive_docs.py
@@ -106,6 +111,87 @@ douyin-comment-analyzer/
 4. **【汇报】跨账号趋势汇总.md** — **提炼汇报**（高热度话题/内容类型占比/高频问题/高价值需求信号）
 
 这些文档通过 IMA MCP（create_media → COS → add_knowledge）上传到「媒体账号监控」知识库（单库+命名分区）。每次账号分析或关键词监控完成后运行本脚本并归档，保持数据层最新。
+
+### 每日监控流水线（2026-09-17 定稿，自动化任务标准流程）
+
+S 级名单唯一维护点是 `_archive/s_watchlist.json`——**扩充账号只改这个文件**，
+驱动脚本每日由 `gen_daily_run.py` 现场生成，不要在自动化任务里硬编码账号 URL。
+
+```bash
+PY=/Users/goterra/.workbuddy/binaries/python/envs/default/bin/python3
+cd /Users/goterra/.workbuddy/skills/douyin-comment-analyzer
+
+# 0. 登录态探针（几秒返回；可选，仅用于判断本轮能否跑）
+#    ⚠️ 登录态检查点已前移到 04:00 巡查任务（2026-09-18 从 09:00 前移）。
+#       本任务（09:00）遇 LOGIN_EXPIRED 只记录「登录态失效，需人工扫码续期」并跳过，
+#       不弹扫码、不自行续期（避免与其它任务互踢登录态、也避免用户收到重复提醒）。
+#       扫码提示的唯一职责在 04:00 任务——它是当天第一个用浏览器的任务，能最早报警。
+$PY scripts/login_probe.py
+
+# 1. 由 s_watchlist.json 生成当日串行驱动脚本 → _runtime/run_daily_<date>.sh
+$PY scripts/gen_daily_run.py 2026-09-17
+
+# 2. 串行抓取（约 36 分钟，9 账号×10 视频 + 关键词×10）
+#    ⚠️ 必须串行！共享 Chrome profile 并行会串号（2026-09-04 踩坑）
+nohup zsh _runtime/run_daily_<date>.sh > /dev/null 2>&1 &
+
+# 3. 话题分析（每个数据集一次）
+$PY scripts/analyze.py account_<昵称>
+$PY scripts/analyze.py keyword_非洲出海
+
+# 4. 需求密度（账号分级，全量口径）
+$PY scripts/demand_density.py | tee _runtime/demand_density_<date>.txt
+
+# 5. 归档文档（4 类）
+$PY scripts/build_archive_docs.py
+
+# 6. 当日摘要（第 7 步汇报，10 数据集口径）
+$PY scripts/daily_digest.py <date> > _runtime/digest_<date>.md
+```
+
+**两套口径别混用**：
+- `demand_density.py` = **全量口径**（所有 `account_*`），用于 S/A/B 分级复核；
+- `daily_digest.py` = **当日 10 数据集口径**（9 个 S 账号 + 关键词），用于当日舆情与选题。
+  后者分母小、密度更敏感，两者数值不可直接对比。
+
+**`all_comments.json` 语义**：每个 `account_<昵称>/` 目录里，`all_comments.json` 是
+**最近一次运行的 10 个视频**去重后的评论文本数组（不是历史累积）；
+`video_*_comments.json` 才是跨天累积的明细，按日期取用时要留意。
+
+### 串号防护与并发隔离（2026-09-22 新增，重要）
+
+**背景**：2026-09-22 09:00 任务与 04:00 巡查任务被同一时刻唤醒（机器休眠后补跑），
+两者共用 `~/.workbuddy/douyin_chrome_profile` 与调试端口 9222，DrissionPage 附着到
+**同一个 Chrome 实例**，导致：① 首轮 10 个数据集只成功 6 个（`PageDisconnectedError`）；
+② 补抓时页面被对方抢走，把**别的账号**的评论写进了 `account_<对方账号>/` 目录（静默串号）。
+→ 结论：**三套抖音任务必须严格串行**；一旦发现并发，先做隔离再抓。
+
+**`account_analyzer.py` 已内建三重防护**（默认生效，无需额外参数）：
+
+| 防护 | 触发点 | 行为 |
+|---|---|---|
+| 主页 URL 校验 | 打开主页后 | `page.url` 不含目标 sec_uid（被重定向到推荐流/别的账号）→ `exit 2`，不写文件 |
+| `--expect "<昵称>"` | 解析出昵称后 | 昵称与期望不符 → `exit 2`，不写文件（`gen_daily_run.py` 已自动带上） |
+| 视频页 URL 校验 | 每个视频抓取前后各一次 | 页面被抢走 → 丢弃该视频；有效视频 < max(5, N/2) → `exit 3` |
+
+**崩溃容错**：抖音视频页偶发 renderer 崩溃（`PageDisconnectedError`），
+旧版会整轮作废。现改为**保留已抓到的视频并聚合出结果**，`meta.json` 增加
+`videos_done` / `partial` / `crash` 字段；`partial=true` 的轮次应视为降级数据。
+
+**并发隔离通道**（当必须与其它任务同时跑时）：
+```bash
+# 复制一份独立 profile（排除缓存，约 130MB），用独立调试端口，与共享实例互不干扰
+rsync -a --delete --exclude 'Default/Cache/' --exclude 'Default/Code Cache/' \
+  --exclude 'Default/GPUCache/' --exclude 'Default/Service Worker/' \
+  ~/.workbuddy/douyin_chrome_profile/ ~/.workbuddy/douyin_chrome_profile_iso/
+rm -f ~/.workbuddy/douyin_chrome_profile_iso/Singleton*
+
+export DOUYIN_PROFILE_DIR=~/.workbuddy/douyin_chrome_profile_iso
+export DOUYIN_DEBUG_PORT=9333
+$PY scripts/account_analyzer.py "<url>" 10 --minimized --expect "<昵称>"
+```
+⚠️ 隔离 profile 的登录态是**复制时的快照**，会独立过期；只在并发冲突时临时用，
+日常仍走共享 profile。用完后不要删（下次冲突可直接复用，但要先重新 rsync 刷新 cookie）。
 
 ### 账号分级标准（出海服务核心，2026-09-02 定）
 
@@ -146,6 +232,10 @@ python3 scripts/reconcile_projects.py
 python3 scripts/backfill_parks.py
 #   写 _archive/africa_parks_reference.json 的 douyin_accounts / douyin_found / douyin_found_date
 #   并把 official+tenant 属性账号追加进 _archive/parks_watchlist.json（按 sec_uid 去重）
+#   ⚠️ 名单互斥（2026-09-18）：同一 sec_uid 不得同时在 parks_watchlist.json 与
+#      s_watchlist.json 里。前者由 13:00 抓、后者由 09:00 抓，重复会让同一账号的评论
+#      被抓两遍且写进同一个 douyin_analysis/account_<昵称>/ 目录互相覆盖。冲突时保留在
+#      parks_watchlist.json。规则全文见 douyin-account-monitor/SKILL.md「三套监控名单的边界与互斥」
 #   回填后必须重跑 reconcile_projects.py，让状态机更新（已补搜园区不再进种子）
 ```
 
@@ -230,6 +320,17 @@ python3 scripts/backfill_parks.py
 - **噪音过滤**：DOM 抓取会把"下载抖音""N小时前·XX省""展开N条回复""播放中""3s 后播放""进入全屏"当评论，common.py 的 is_comment_text 已过滤这些
 - **账号昵称/统计信息在 DOM，不在 RENDER_DATA**：RENDER_DATA 里的 nickname 是页面其他作者；账号名从 `<title>`（"xxx的抖音 - 抖音"）提取，粉丝/获赞/作品数从 body 文本提取（标签与数值可能同行"粉丝21.0万"或分行"粉丝\n21.0万"）
 - **搜索页偶发空壳**：页面只有导航+页脚（HTML <100KB），是异步加载失败，keyword_extract.py 会用页面长度检测并自动重开重试
+- **词表噪音需定期维护（2026-09-16 踩坑）**：`build_archive_docs.py::top_words` 的 `stop` 词表会随抖音前端改版失效。09-16 发现【汇报】话题 Top20 被「快乐大本营/京公网安备/剪映专业版/标清/狗杂/天前/万获赞/下一章/内容由/加载中/暂时没有更多/小时前/结语」等**页面残留 + 视频简介 + 时间戳**词占据，掩盖真实话题。已补约 50 词。**若话题榜出现明显无意义词，先怀疑停用词表过期**，补词后重跑 `build_archive_docs.py` 即可（无需重抓）
+- **⚠️ 语料中混有「视频简介/字幕」原文（2026-09-16 观察，待抓取层修复）**：`all_comments.json` 里会出现整段视频简介或 ASR 字幕（如「东非坦桑尼亚中国产业园」21 条跨 6 账号、「结语」「大江非洲咨询将于」「为什么偏要远赴非洲深耕外贸…」）。这些**不是评论**，会稀释需求密度口径（因分母含简介）。当前靠停用词表部分缓解；根治需在 `common.py::is_comment_text` 层按 DOM 来源（评论区容器 vs 简介区）打标过滤。**解读密度绝对值时需知悉该口径偏差**
+- **UI 残留会以「独立单条评论」形式混入（2026-09-17 踩坑，已修）**：新版页面把**播放器倒计时**「1s 后播放下一个视频」「0s 后播放」按秒数变体混进评论区（旧词表只挡了固定 `3s 后播放`，全部漏网），加上「短剧/通知/消息/狗杂/30天内」等控件标签和「用户7048135123713」占位昵称。后果：当日话题 Top10 被这些词整榜占据，真实话题（加纳/人民币/外贸）被挤出。**修法**：`common.py` 新增 `COUNTDOWN_RE`（正则匹配任意秒数倒计时）、`PLACEHOLDER_USER_RE`、`is_ui_residue()` 统一判定，并在 `is_comment_text` 里调用；`TOPIC_STOPWORDS` 补入这批词。**判定经验**：任何「2-6 字中文词」若在话题榜里排进 Top10 但你读不出业务含义，先查它是不是 UI 标签。
+- **停用词表必须单一来源（2026-09-17 收敛）**：`build_archive_docs.py` 与 `daily_digest.py` 曾各维护一份停用词表，导致修了一处另一处仍污染（09-17 摘要与 09-17 汇报话题榜不一致即由此产生）。现已统一到 `common.py::TOPIC_STOPWORDS`，**两个脚本都从 common 导入，禁止再内联复制**。切词前还要 `is_ui_residue()` 预过滤 + 丢弃 `#`≥2 的标签文案，否则长文案会被切成「计划/后播放下一个」这类碎片混入词频榜。
+- **提问样本要卡「以问号结尾」（2026-09-17）**：抽取「评论区问得最多的问题」时，若只按「怎么/能不能/多少钱」匹配，会把**视频简介与标题**（如「实地探访非洲家具一条街，来非洲开家具厂能不能赚钱？」）当成用户提问。加「以 ？/? 结尾 + 不含 # + 长度 6-60」三重条件后才是真实提问。
+- **🔴 语料 22% 是「账号名行」而非评论（2026-09-18 定量确认 + 已修话题榜）**：新版页面 DOM 通道会把**右侧推荐流的账号名**当独立条目抓进来，形态是「数字前缀 + 昵称」——前缀其实是粉丝数/获赞数/序号，如 `4853叶镇平出海贸易`、`2.5万勇闯非洲的家敏（机票签证旅游商务接待)`、`5414梨花带雨`。当日 3368 条语料里 **730 条（21.7%）是账号名行，真评论只有 2616 条（77.7%）**。
+  - **⚠️ 分工（极易踩错）**：账号名行**不是评论**（不该进话题榜、不该进密度分母），但**是「同行线索」的唯一来源**——`daily_digest.py::PREFIX_PAT` 就是剥它的数字前缀。所以**话题统计要排除，同行线索提取绝不能排除**。`common.py` 只提供判定器，由消费方决定。
+  - **已修**：`common.py` 新增 `is_account_mention()`（带「吗/怎么/我/你/多少」等真评论标记守卫，实测 746 条命中里只放过 3 条真提问）、`is_chapter_residue()`（章节要点/字幕的工程参数式长句，如「沙坪河段…：水深6.3米，宽度80米，最小弯曲半径360米」）、`is_topic_noise()`（三合一）；`build_archive_docs.py::top_words` 与 `daily_digest.py::top_topics` 均已接入。
+  - **未修（待决策）**：`demand_density.py` 的分母**仍含这 22% 账号名行**。因账号名行几乎不命中需求正则，等于把密度**系统性低估约 1/0.78 ≈ 1.28 倍**（义乌 16.9% 实际约 21.7%）。**历史 9/3-9/18 全部沿用同一偏差口径，故环比可比、但绝对值偏低**。是否重算基线需 Mark 决策（改口径会与历史断裂）。
+- **平台注入内容会跨数据集逐字重复（2026-09-18 新增 `cross_dataset_duplicates()`）**：推荐流视频标题/推广卡在**每个账号页面逐字一致**，实例「以为库里南已经无敌了，结果后面还有个更猛的……」在 9 个 S 级账号页面全部出现，被切词后贡献 45 次词频、直接霸榜 Top10。**判定：在 ≥4 个数据集里逐字完全相同的字符串 = 平台注入，不是用户评论**（真评论再热也不可能在 9 个账号下逐字一致）。已接入 `top_words` / `top_topics`，当日仅命中 42 条、其中多为已在停用词表内的控件文案，误杀风险极低。
+- **标签文案门槛由 `#`≥2 收紧到 `#`≥1（2026-09-18）**：只带 1 个话题标签的条目几乎全是**视频标题/账号自述**（如「投资300万开的养生馆，到底要不要卖房缓解经济压力！ #邹先华」），不是评论。当日此类 74 条，已从话题榜剔除。
 
 ## 注意事项
 

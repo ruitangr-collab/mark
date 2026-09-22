@@ -1,0 +1,200 @@
+{
+  "MS4wLjABAAAAqwQtfhIBW1LJQE22-OLnNdlUJzzJKAiEgatfVabWMJY": {
+    "nickname": "坤哥越南海外仓",
+    "reason": "区域错位（越南，非非洲）",
+    "rolled_back_at": "2026-09-06 20:15",
+    "note": "首次回滚 2026-09-05；2026-09-06 卷土重来后补黑名单（脚本无黑名单机制的教训）"
+  },
+  "MS4wLjABAAAAQmjzrHvz-pGnH1VAPAa6s4XrQeGESzfi-IMv_XVjqX2axrztb8ZkY_UOvA0HkPkB": {
+    "nickname": "重生之在美国做海外仓",
+    "reason": "区域错位（美国，非非洲）",
+    "rolled_back_at": "2026-09-06 20:15",
+    "note": "首次回滚 2026-09-05；2026-09-06 卷土重来后补黑名单（脚本无黑名单机制的教训）"
+  },
+  "MS4wLjABAAAA04InS93yL0iOhvOp4VLHYDTrTceR5OeaVHHhuCzuWcc": {
+    "nickname": "中途国旅-全球签证办理服务中心",
+    "reason": "全球签证无非洲关联（仅\"签证\"词命中）",
+    "rolled_back_at": "2026-09-06 20:15",
+    "note": "首次回滚 2026-09-05；2026-09-06 卷土重来后补黑名单（脚本无黑名单机制的教训）"
+  },
+  "MS4wLjABAAAAo50YDJa3JX-xxB6rmbt-MApdj8d3mkdhpigqX54df0_KpweBKucReEH_x8adC3OB": {
+    "nickname": "元飞在非洲",
+    "reason": "与已监控「非洲桉木单板-续元飞」同主体双号",
+    "rolled_back_at": "2026-09-06 20:15",
+    "note": "首次回滚 2026-09-05；2026-09-06 卷土重来后补黑名单（脚本无黑名单机制的教训）"
+  },
+  "MS4wLjABAAAAhRFkohyL2l3ciu1vw55j1q6pu2w0PxsU8Ho_s_qpPDIiA3spTx_b1KlgB2xoRLAe": {
+    "nickname": "Paula",
+    "reason": "内容号（安哥拉政策解读，无服务动作词）",
+    "rolled_back_at": "2026-09-06 20:15",
+    "note": "首次回滚 2026-09-05；2026-09-06 卷土重来后补黑名单（脚本无黑名单机制的教训）"
+  },
+  "MS4wLjABAAAASLQrV9WB0dC3EWZ2Cz5lTexMbaDJlGg-RepO1S-O6dY": {
+    "nickname": "欧洲海外仓-八佰标兵奔北坡",
+    "reason": "区域错位（欧洲意大利西班牙海外仓，非非洲）",
+    "rolled_back_at": "2026-09-08 20:20",
+    "note": "2026-09-08 拓号误灌回滚后补黑名单"
+  },
+  "MS4wLjABAAAAjr9VOJiu58b5K7p4ClE2Aky2b4wZcNljpui2ElqC878": {
+    "nickname": "小梦（TR海外仓）",
+    "reason": "区域错位（美国海外仓，非非洲）",
+    "rolled_back_at": "2026-09-08 20:20",
+    "note": "2026-09-08 拓号误灌回滚后补黑名单"
+  },
+  "MS4wLjABAAAAbmMinMeIwGMpgzaHHjtsYZaKqL8naa_DAZji1EHQm6zbDMdjGiHxfWfUXR-Fyptz": {
+    "nickname": "捷选海外仓",
+    "reason": "区域错位（美国海外仓，非非洲）",
+    "rolled_back_at": "2026-09-08 20:20",
+    "note": "2026-09-08 拓号误灌回滚后补黑名单"
+  },
+  "MS4wLjABAAAA6P-cjTnRAMUh9aChzaYC6gDL5oH_B7F6bFahZgO4gVKl_d-7Re5aVv1s6pnW3lBJ": {
+    "nickname": "瀛和海外AI爆品供应链",
+    "reason": "泛全球海外仓无非洲关联（132个全球仓）",
+    "rolled_back_at": "2026-09-08 20:20",
+    "note": "2026-09-08 拓号误灌回滚后补黑名单"
+  },
+  "MS4wLjABAAAAENZyVJ8nM8jmaBUGzI5SkHUyMQ7V1jzJAzynMwUy7_A": {
+    "nickname": "阿连在非洲",
+    "reason": "服务市场美国专线DDP货代（昵称在非洲但服务非非洲）",
+    "rolled_back_at": "2026-09-08 20:20",
+    "note": "2026-09-08 拓号误灌回滚后补黑名单"
+  },
+  "MS4wLjABAAAAUYC0Dbj16nhvsADNvgM2YMqNj2RieuqD5oqaan2pYtAyd-fzQzrF_V8jXDVGvNkZ": {
+    "nickname": "发烧哥在非洲",
+    "reason": "实业内容号（木材厂老板带货，非服务商）",
+    "rolled_back_at": "2026-09-08 20:20",
+    "note": "2026-09-08 拓号误灌回滚后补黑名单"
+  },
+  "MS4wLjABAAAAoH9_XUUiB-AvP8nXsG4cs_-LFSibDdH7I3v_tPvgD6I": {
+    "nickname": "天门服装跨境电商（岳口）产业园",
+    "reason": "纯国内产业园（湖北天门岳口服装产业综合体，非洲零关联）",
+    "rolled_back_at": "2026-09-09 20:20",
+    "note": "2026-09-09 拓号误灌回滚后补黑名单；命中「供应链,产业园」绕过 ZONE_AMBIGUOUS_WORDS 语境校验（供应链非园区词）"
+  },
+  "MS4wLjABAAAAml0-d5YeD3T4HI21a5O-oe0hBa4jpxJKREOMuAnq1aY": {
+    "nickname": "鱼哥在东南亚",
+    "reason": "个人IP/工程从业者内容号（90后央企总包项目经理，长期居住雅加达），无服务动作词；「产业园」仅为履历（大型EPC产业园项目策划者），服务市场在东南亚",
+    "rolled_back_at": "2026-09-11 20:20",
+    "note": "2026-09-11 拓号误灌回滚后补黑名单。暴露：园区词联动校验可被『履历提及非洲』绕过"
+  },
+  "MS4wLjABAAAACP7nZvhkdFPZYtYeq1IG4YpAvrdgGJ_nouNoKBmbjH4WN5VZNAFhZ1Y8WlgO2K7e": {
+    "nickname": "加纳 安哥拉 海运找李瑞",
+    "reason": "同主体双号（安信国际物流），与 2026-09-04 入库的「安信国际物流，非洲海运双清专线！」同一主体，按主体去重",
+    "rolled_back_at": "2026-09-11 20:20",
+    "note": "2026-09-11 拓号误灌回滚后补黑名单。服务属性本身成立（非洲物流/海外仓/清关），仅因同主体去重回滚"
+  },
+  "MS4wLjABAAAA1GhBN5euCEYRRiIZx1BdKdUJYuJIZp4c3j8hw6wT1l0": {
+    "nickname": "京东物流",
+    "reason": "区域错位（京东物流文创号，纯国内大厂物流，无非洲关联）",
+    "rolled_back_at": "2026-09-13 20:15",
+    "note": "2026-09-13 拓号脚本自动入库后人工复核回滚；根因=「物流/货代」强词无非洲语境校验，抖音「非洲物流」搜索返回大量国内/其他区域物流大号"
+  },
+  "MS4wLjABAAAAaqVbh62t_EBEGiUcOp6qbJzDJN-oLUbAvHvH4WuCE2I": {
+    "nickname": "欧美加国际物流专线",
+    "reason": "区域错位（亚马逊英欧美加 FBA 头程，服务市场欧美加，非非洲）",
+    "rolled_back_at": "2026-09-13 20:15",
+    "note": "2026-09-13 拓号脚本自动入库后人工复核回滚；根因=「物流/货代」强词无非洲语境校验，抖音「非洲物流」搜索返回大量国内/其他区域物流大号"
+  },
+  "MS4wLjABAAAAmaMppzGIXIB7NhnK1xtMNJZfSa9EgL70VPlZ-3YsRy0": {
+    "nickname": "上海翔旸物流",
+    "reason": "区域错位（上海本地全屋定制家具配送，纯国内城配）",
+    "rolled_back_at": "2026-09-13 20:15",
+    "note": "2026-09-13 拓号脚本自动入库后人工复核回滚；根因=「物流/货代」强词无非洲语境校验，抖音「非洲物流」搜索返回大量国内/其他区域物流大号"
+  },
+  "MS4wLjABAAAACuTcGeB2XSqyy5y_MfnASWdqUQ4S7ODtP_n94jlm7T8": {
+    "nickname": "广州肥佬物流有限公司",
+    "reason": "区域错位（国内运输车队 30 余台，无非洲关联）",
+    "rolled_back_at": "2026-09-13 20:15",
+    "note": "2026-09-13 拓号脚本自动入库后人工复核回滚；根因=「物流/货代」强词无非洲语境校验，抖音「非洲物流」搜索返回大量国内/其他区域物流大号"
+  },
+  "MS4wLjABAAAAL9Pc_gNFL-Au0I8Bh5sT6BBpCoM-AgrUtEf5WgshFXa172MuCWc08zhf25f3dGSR": {
+    "nickname": "小师妹物流",
+    "reason": "区域错位（快狗打车/广州神阳车队国内城配，无非洲关联）",
+    "rolled_back_at": "2026-09-13 20:15",
+    "note": "2026-09-13 拓号脚本自动入库后人工复核回滚；根因=「物流/货代」强词无非洲语境校验，抖音「非洲物流」搜索返回大量国内/其他区域物流大号"
+  },
+  "MS4wLjABAAAAirrgIGc4JSNw6jg5wgyfugVcfi6_YBatr9ZduHbjIw8": {
+    "nickname": "白俄罗斯 俄罗斯 专线物流",
+    "reason": "区域错位（俄白专线，非非洲）",
+    "rolled_back_at": "2026-09-13 20:15",
+    "note": "2026-09-13 拓号脚本自动入库后人工复核回滚；根因=「物流/货代」强词无非洲语境校验，抖音「非洲物流」搜索返回大量国内/其他区域物流大号"
+  },
+  "MS4wLjABAAAA2kD0k86RbkjvRO7FyhjNK9TIvTT1wFBv6kydDB--iq9fquZcFB32PW3Sn61LPz2u": {
+    "nickname": "华中FBA物流",
+    "reason": "区域错位（深圳华中货代，主营 FBA，无非洲关联）",
+    "rolled_back_at": "2026-09-13 20:15",
+    "note": "2026-09-13 拓号脚本自动入库后人工复核回滚；根因=「物流/货代」强词无非洲语境校验，抖音「非洲物流」搜索返回大量国内/其他区域物流大号"
+  },
+  "MS4wLjABAAAAeohhkfmTbb5avkOoS-Co2cDtGLUzsl4dliIpvhxhREnPHoMagkcbpgrI7SUa9OPa": {
+    "nickname": "广州肥佬物流有限公司官方账号",
+    "reason": "同主体双号 + 区域错位（与「广州肥佬物流有限公司」同主体，纯国内）",
+    "rolled_back_at": "2026-09-13 20:15",
+    "note": "2026-09-13 拓号脚本自动入库后人工复核回滚；根因=「物流/货代」强词无非洲语境校验，抖音「非洲物流」搜索返回大量国内/其他区域物流大号"
+  },
+  "MS4wLjABAAAAXVi2QLvC8QmAtqcmYkZ8pgPSwQ27MUlDVzNM4_Xf6E4UJ2fM8F9cxXmuB8QcxV5e": {
+    "nickname": "元初国际物流",
+    "reason": "区域错位（自贸区贸易代理/通关/货代，无非洲关联）",
+    "rolled_back_at": "2026-09-13 20:15",
+    "note": "2026-09-13 拓号脚本自动入库后人工复核回滚；根因=「物流/货代」强词无非洲语境校验，抖音「非洲物流」搜索返回大量国内/其他区域物流大号"
+  },
+  "MS4wLjABAAAA_h5cQnv3R3P1n6Y5np9gj4hWND7O9DoHbpo3InNcg9D_bxdhB72gndEfHt51eRVV": {
+    "nickname": "俄罗斯全品类俄货供应链海外仓",
+    "reason": "区域错位（俄罗斯绥芬河自贸区俄货进口，与非洲零关联）；海外仓强词无区域校验误灌",
+    "rolled_back_at": "2026-09-15 20:13:40",
+    "note": "2026-09-15 拓号误灌回滚后补黑名单"
+  },
+  "MS4wLjABAAAADTkd4w2aX0vNQnU5ofzClEGEZk8btdUQO1SK5JwidvkO2SAoPLe3YvmdZD3pc4Wy": {
+    "nickname": "黄总海外仓",
+    "reason": "无非洲指向；签名实为进出口高端运动服饰贸易，无非洲海外仓服务动作",
+    "rolled_back_at": "2026-09-15 20:13:40",
+    "note": "2026-09-15 拓号误灌回滚后补黑名单"
+  },
+  "MS4wLjABAAAA535ZbNyPoUDbsef_E40cWvYrYoFxZYGe5eIscgQGdCF7QsSIKYAdVSJ-1T30fSlh": {
+    "nickname": "华东海外仓",
+    "reason": "无非洲指向；签名仅「承蒙厚爱…商务：9785229」，无任何非洲语境与服务动作",
+    "rolled_back_at": "2026-09-15 20:13:40",
+    "note": "2026-09-15 拓号误灌回滚后补黑名单"
+  },
+  "MS4wLjABAAAAKDbabCSzA3Fj1woc_e5qMjFcs8CGjzrcW0__L5v9e68": {
+    "nickname": "老魏在非洲做汽车生意创业日常",
+    "reason": "垂直实业/自营型，无对外服务动作——作品18条主体为昆明二手车零售（宝马530/泡水车/卡宴/玛莎拉蒂/A3/X5/宾利）+马达加斯加生活记录，无承接/招商/招揽；评论区客群为二手车买家非出海华商（同09-08「发烧哥在非洲」型）",
+    "rolled_back_at": "2026-09-15 20:13:40",
+    "note": "2026-09-15 拓号误灌回滚后补黑名单"
+  },
+  "MS4wLjABAAAAij5-Umkj834UM18oGClGbsvinz8gs7xzdN9pNABdUNg": {
+    "nickname": "东南亚出海Nina",
+    "reason": "区域错位（服务市场为泰国/越南东南亚，与非洲零关联；签名明确「品牌出海泰越市场」，仅「公司注册/注册/咨询」强词命中）",
+    "rolled_back_at": "2026-09-16 20:14",
+    "note": "2026-09-16 拓号人工复核回滚后补黑名单"
+  },
+  "MS4wLjABAAAAWpBzjqya38Uv0CVjSTVhDfyNfDmOKkpNE9a0-rZPtfqc8hAk9opOHHJ_4RsGrz1B": {
+    "nickname": "非洲蔡-跨境电商",
+    "reason": "同主体双号（与 S 级「非洲蔡」同品牌同主体：主号签名「扎根非洲10多年的80后工厂老板…主打非洲：物流货代、海外仓」，本号「深耕非洲十几载，搭建非洲各地海外仓平台」，业务与年限声明一致，按主体去重）",
+    "rolled_back_at": "2026-09-16 20:14",
+    "note": "2026-09-16 拓号人工复核回滚后补黑名单"
+  },
+  "MS4wLjABAAAAvjnM4tCNk2q1hgNC6XDACd6drEb2Nb61iEnSb2mOvH0": {
+    "nickname": "非洲一哥（姚隽）",
+    "reason": "同主体双号：签名明示「详见大号@非洲信盟物流」，与已监控 S* 级「非洲信盟物流」同主体，按主体去重回滚",
+    "rolled_back_at": "2026-09-17 20:13",
+    "note": "2026-09-17 拓号人工复核回滚后补黑名单"
+  },
+  "MS4wLjABAAAA91ITb2hOGV5_fw3K6FHfUWe6MMK2ug2qiFfUiMaev_hi7QTBWX37jwAGU6NE8TWw": {
+    "nickname": "大湾区数字产业服务平台",
+    "reason": "2026-09-22误收：国内（广东）产业招商平台，签名无非洲属性，countries为空，非出海非洲服务号",
+    "rolled_back_at": "2026-09-22 13:14",
+    "note": "2026-09-22 拓号人工复核回滚后补黑名单"
+  },
+  "MS4wLjABAAAAdvyrJ2LKbr4CAz4A4a4FLDH9ETylabYCxit-hX337FFMd5ahQRL8XiD-RC8CuYng": {
+    "nickname": "临沂商城国际电子商务产业园",
+    "reason": "2026-09-22误收：国内（山东临沂）电商产业园，非出海非洲服务号",
+    "rolled_back_at": "2026-09-22 13:14",
+    "note": "2026-09-22 拓号人工复核回滚后补黑名单"
+  },
+  "MS4wLjABAAAAgz2hE3C8lWbTMACf8YSUueNd181FDQVBvdzXiPShKiI": {
+    "nickname": "侯马开发区新田智联信创产业园",
+    "reason": "2026-09-22误收：国内（山西侯马）开发区产业园，非出海非洲服务号",
+    "rolled_back_at": "2026-09-22 13:14",
+    "note": "2026-09-22 拓号人工复核回滚后补黑名单"
+  }
+}

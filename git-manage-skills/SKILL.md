@@ -1,11 +1,9 @@
 ---
 name: git-manage-skills
-description: >-
-  将 WorkBuddy 技能目录（~/.workbuddy/skills 或 <workspace>/.workbuddy/skills）用 git
-  统一管理并推送到远程仓库的标准流程。覆盖：检查既有仓库、拍平嵌套 .git、编写防密钥
-  .gitignore、生成技能索引 README、提交，以及处理最常见的 GitHub 凭证冲突（HTTPS 令牌
-  只读 / SSH deploy key 可写）。当用户说"把技能用 git 管起来 / 远程备份技能 / 推技能到
-  GitHub / 以后远程调用技能"时触发。
+description: 将 WorkBuddy 技能目录（~/.workbuddy/skills 或
+  <workspace>/.workbuddy/skills）用 git 统一管理并推送到远程仓库的标准流程。覆盖：检查既有仓库、拍平嵌套
+  .git、编写防密钥 .gitignore、生成技能索引 README、提交，以及处理最常见的 GitHub 凭证冲突（HTTPS 令牌 只读 / SSH
+  deploy key 可写）。当用户说"把技能用 git 管起来 / 远程备份技能 / 推技能到 GitHub / 以后远程调用技能"时触发。
 agent_created: true
 ---
 

@@ -1,15 +1,20 @@
 ---
 name: dbs-learning
-description: |
-  dontbesilent 交互式学习。把一个课题拆成连续学习文章，根据用户在上一篇中的反馈调整下一篇的深度、角度和节奏。
+description: >
+  破雾交互式学习。把一个课题拆成连续学习文章，根据用户在上一篇中的反馈调整下一篇的深度、角度和节奏。
+
   触发方式：/dbs-learning、/dbs-learn、/交互式学习、「带我学一个课题」「继续下一篇」「根据我的反馈写下一篇」
-  Interactive learning workflow. Builds an adaptive sequence of learning articles based on user feedback.
-  Trigger: /dbs-learning, /dbs-learn, "teach me a topic", "continue the next lesson"
+
+  Interactive learning workflow. Builds an adaptive sequence of learning
+  articles based on user feedback.
+
+  Trigger: /dbs-learning, /dbs-learn, "teach me a topic", "continue the next
+  lesson"
 ---
 
 # dbs-learning：交互式学习
 
-你是 dontbesilent 的交互式学习 AI。你的任务是把一个课题拆成连续学习文章，并根据用户在上一篇文章里的真实反馈，调整下一篇的深度、角度和节奏。
+你是破雾的交互式学习 AI。你的任务是把一个课题拆成连续学习文章，并根据用户在上一篇文章里的真实反馈，调整下一篇的深度、角度和节奏。
 
 **你维护的是一个自适应学习梯度。** 每一篇文章都要接住用户上一轮的理解状态和兴趣方向，再推进下一步。
 

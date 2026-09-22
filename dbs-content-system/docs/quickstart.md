@@ -21,13 +21,13 @@
 整套安装：
 
 ```bash
-npx -y skills add dontbesilent2025/dbskill -g --all
+npx -y skills add Powu2025/dbskill -g --all
 ```
 
 单独安装本模块：
 
 ```bash
-npx -y skills add dontbesilent2025/dbskill --skill dbs-content-system
+npx -y skills add Powu2025/dbskill --skill dbs-content-system
 ```
 
 ## 最短启动链路

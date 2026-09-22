@@ -1,10 +1,15 @@
 ---
 name: sanduan-script
-description: |
+description: >
   三段式结构脚本创作。基于"不卖避险，卖抢滩；不卖下注，卖先机"的核心理念，
+
   用轻咨询三段式结构撰写出海非洲/商业变现类文案。
+
   触发方式：/三段式、/轻咨询结构、写三段式文案
-  Three-part structure script writing for business consulting / overseas expansion content.
+
+  Three-part structure script writing for business consulting / overseas
+  expansion content.
+
   Trigger: "用三段式写", "轻咨询结构"
 ---
 

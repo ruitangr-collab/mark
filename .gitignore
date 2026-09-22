@@ -16,6 +16,9 @@ node_modules/
 .env
 .env.*
 
+# WorkBuddy 系统记忆（误生成到 skill 目录下的，绝不提交）
+.workbuddy/
+
 # 会话与缓存（不要提交登录态 cookie）
 *session*.json
 *.cache/
@@ -50,3 +53,7 @@ douyin-live-monitor/src/proto/
 *.aac
 *.m4a
 *.flac
+
+# xhs-account-data：Chrome 登录态 profile 与运行时数据（绝不提交 Cookie）
+XiaohongshuProfiles/
+*/chrome-profile/

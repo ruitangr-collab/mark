@@ -18,7 +18,7 @@ const catalog = [
   { category: "爆款文稿", sourceType: "爆款文稿", dirs: ["爆款文稿"] },
   { category: "推文", sourceType: "推文素材", dirs: ["推文"] },
   { category: "其他作者", sourceType: "外部研究素材", dirs: ["其他作者"] },
-  { category: "dontbesilent", sourceType: "本人内容", dirs: ["dontbesilent"] },
+  { category: "破雾", sourceType: "本人内容", dirs: ["破雾"] },
   { category: "完整副本", sourceType: "完整副本", dirs: ["完整副本"] },
 ];
 

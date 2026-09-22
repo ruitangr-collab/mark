@@ -1,7 +1,9 @@
 ---
 name: marketing-skills
-description: "TL;DR: 23 marketing playbooks (CRO, SEO, copy, analytics, experiments, pricing, launches, ads, social). Use to get checklists + copy/paste deliverables fast."
-description_zh: "23 个营销模块合集：CRO、SEO、文案、投放、定价、社交等"
+description: "TL;DR: 23 marketing playbooks (CRO, SEO, copy, analytics,
+  experiments, pricing, launches, ads, social). Use to get checklists +
+  copy/paste deliverables fast."
+description_zh: 23 个营销模块合集：CRO、SEO、文案、投放、定价、社交等
 description_en: "23 marketing playbooks: CRO, SEO, copy, ads, pricing, social & more"
 version: 1.0.0
 ---

@@ -1,6 +1,8 @@
 ---
 name: json-schema-generator
-description: 根据用户的自然语言描述，自动生成符合 JSON Schema Draft 2020-12 规范的完整 Schema 文件。适用于 API 接口设计、前端表单校验、数据配置文件定义、跨系统数据交换协定等场景。当用户提出生成 JSON Schema、定义数据结构、设计接口字段、写一个 Schema 校验等需求时触发。支持嵌套对象、数组、枚举、必填字段、格式校验（email、uri、date 等），输出包含 Schema 文件和示例数据。
+description: 根据用户的自然语言描述，自动生成符合 JSON Schema Draft 2020-12 规范的完整 Schema 文件。适用于
+  API 接口设计、前端表单校验、数据配置文件定义、跨系统数据交换协定等场景。当用户提出生成 JSON Schema、定义数据结构、设计接口字段、写一个
+  Schema 校验等需求时触发。支持嵌套对象、数组、枚举、必填字段、格式校验（email、uri、date 等），输出包含 Schema 文件和示例数据。
 version: 1.0.0
 author: 由 WorkBuddy 自动创建
 agent_created: true

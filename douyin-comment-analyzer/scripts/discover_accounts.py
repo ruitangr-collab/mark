@@ -102,9 +102,14 @@ def parse_card_text(text: str, sec_uid: str) -> dict:
     """解析用户卡片文本（li.innerText 结构）：
         昵称
         关注
-        抖音号: <id><粉丝数>获赞<获赞数>粉丝
+        抖音号: <id><获赞数>获赞<粉丝数>粉丝
         签名
-    注意：粉丝数夹在「抖音号」与「获赞」之间，小号可能没有可见粉丝数（2026-09 验证）
+
+    【2026-09-05 修正 · 数值在前、标签在后】
+    旧版按「标签在前」解析（把「获赞」前的数当成粉丝数），导致 likes / followers
+    整体互换。实测：某号卡片给出 33.6万获赞 / 12.4万粉丝，旧代码存成
+    粉丝 33.6万、获赞 12.4万——与主页真实值恰好对调，粉丝变化量因此出现巨额负数。
+    连带影响：入库门槛 `followers >= min_fans` 一直卡的是获赞数而非粉丝数。
     """
     lines = [l.strip() for l in (text or '').split('\n') if l.strip()]
     drop = {'关注', '私信', '已关注', '私密账号', '直播中', '求更新'}
@@ -114,32 +119,34 @@ def parse_card_text(text: str, sec_uid: str) -> dict:
     douyin_id, likes, fans = '', 0, 0
     sig_lines, hit_id_line = [], False
 
+    UNIT = r'(?:亿|万|w|W)'
+
     for l in lines[1:]:
         if l.startswith('抖音号:') or l.startswith('抖音号：'):
             hit_id_line = True
-            # 拆分：获赞数必在"获赞"与"粉丝"之间
-            m = re.search(r'获赞\s*([\d.]+[亿万wW]?)\s*粉丝', l)
+            # 数值在前、标签在后：<获赞数>获赞<粉丝数>粉丝
+            m = re.search(rf'([\d.]+{UNIT}?)\s*获赞\s*([\d.]+{UNIT}?)\s*粉丝', l)
             if m:
-                likes = parse_count(m.group(1))
+                # 无单位的裸数多半是抖音号尾数（如 ft058113903），不能当获赞数
+                if re.search(rf'{UNIT}$', m.group(1) or ''):
+                    likes = parse_count(m.group(1))
+                # 【2026-09-14 修复 · 粉丝独立解析】
+                # 旧版把粉丝解析写在「获赞带单位」这个 if 里面，导致获赞 <1万
+                # （卡片显示裸数、无 万/亿 单位）的账号，粉丝被一并清零。
+                # 后果：「粉丝 ≥1000」入库门槛对这类号完全失效 —— 出海服务号多为
+                # 中小号，获赞常在 1万 以下，于是长期被静默漏掉。
+                # 实证（2026-09-12~14 三日一致）：候选里有粉丝值的 100% 获赞 ≥1万；
+                # 无粉丝值的占绝大多数，且 service 属性候选几乎全为 0。
+                # 注：group(2) 位于「获赞…粉丝」之间，语义唯一，裸数也是合法粉丝数。
+                fans = parse_count(m.group(2))
+                # 上限校验：抖音粉丝无超过 5000万 的号
+                if fans > 50000000:
+                    fans = 0
                 prefix = l[:m.start()]
             else:
                 prefix = l
             prefix = re.sub(r'^抖音号[:：]\s*', '', prefix).strip()
-            # 从尾部剥离粉丝数。
-            # 关键坑（2026-09）：抖音号本身可能以数字结尾（如 ft058113903），
-            # 纯数字无法区分「抖音号尾数」和「粉丝数」→ 只认带单位(万/亿/w)的，
-            # 避免把 58113903 当成 5811万 粉丝。粉丝<1万的号记为0（可在分析时忽略）。
-            mf = re.search(r'([\d.]+(?:亿|万|w|W))$', prefix)
-            if mf:
-                rest = prefix[:mf.start()].strip()
-                if rest:
-                    val = parse_count(mf.group(1))
-                    # 上限校验：抖音粉丝无超过 5000万 的号，超出说明是抖音号尾数误判
-                    fans, douyin_id = (val if val <= 50000000 else 0), rest
-                else:
-                    douyin_id = prefix
-            else:
-                douyin_id = prefix
+            douyin_id = prefix
         elif hit_id_line and len(l) > 3:
             sig_lines.append(l)
         elif not hit_id_line and l != nick and len(l) > 6:

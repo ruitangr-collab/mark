@@ -1,8 +1,15 @@
 ---
 name: stealth-browser
-description: Ultimate stealth browser automation with anti-detection, Cloudflare bypass, CAPTCHA solving, persistent sessions, and silent operation. Use for any web automation requiring bot detection evasion, login persistence, headless browsing, or bypassing security measures. Triggers on "bypass cloudflare", "solve captcha", "stealth browse", "silent automation", "persistent login", "anti-detection", or any task needing undetectable browser automation. When user asks to "login to X website", automatically use headed mode for login, then save session for future headless reuse.
-description_zh: "四层反检测浏览器自动化，支持隐身登录与验证码绕过"
-description_en: "4-layer anti-detection browser automation with stealth login & CAPTCHA bypass"
+description: Ultimate stealth browser automation with anti-detection, Cloudflare
+  bypass, CAPTCHA solving, persistent sessions, and silent operation. Use for
+  any web automation requiring bot detection evasion, login persistence,
+  headless browsing, or bypassing security measures. Triggers on "bypass
+  cloudflare", "solve captcha", "stealth browse", "silent automation",
+  "persistent login", "anti-detection", or any task needing undetectable browser
+  automation. When user asks to "login to X website", automatically use headed
+  mode for login, then save session for future headless reuse.
+description_zh: 四层反检测浏览器自动化，支持隐身登录与验证码绕过
+description_en: 4-layer anti-detection browser automation with stealth login & CAPTCHA bypass
 version: 1.0.0
 allowed-tools: Bash
 ---

@@ -21,6 +21,22 @@ try:
 except ImportError:
     DEMAND_CATS, clean_comment = {}, lambda c: c
 
+# 话题词频停用词统一从 common.py 取（2026-09-17 收敛，此前本文件内联一份已漂移）
+try:
+    from common import (TOPIC_STOPWORDS as _TOPIC_STOP, is_ui_residue,
+                        is_topic_noise, cross_dataset_duplicates)
+except ImportError:
+    _TOPIC_STOP = set()
+
+    def is_ui_residue(_t):
+        return False
+
+    def is_topic_noise(_t):
+        return False
+
+    def cross_dataset_duplicates(_per, _n=4):
+        return set()
+
 OUTPUT_BASE = Path.home() / ".workbuddy/douyin_analysis"
 ARCHIVE_DIR = OUTPUT_BASE / "_archive"
 
@@ -66,21 +82,25 @@ def extract_demand_signals(comments: list[str], top_n: int = 5) -> list[tuple[st
     return [(c[:120] + ('...' if len(c) > 120 else ''), c) for c in uniq[:top_n]]
 
 
-def top_words(comments: list[str], n: int = 15) -> list[tuple[str, int]]:
+def top_words(comments: list[str], n: int = 15, extra_skip: set | None = None) -> list[tuple[str, int]]:
     """简单词频统计（过滤单字、常见词、页面噪音）"""
-    stop = {'非洲', '出海', '中国', '怎么', '如何', '什么', '一个', '没有', '就是',
-            '这个', '那个', '自己', '我们', '你们', '他们', '现在', '可以', '不是',
-            '真的', '感觉', '知道', '发现', '看到', '大家', '还有', '已经', '这样',
-            # 页面页脚/播放器噪音
-            '人服证字', '网络谣言', '曝光台', '稍后再看', '进入全屏', '网页全屏',
-            '高清', '清屏', '倍速', '画质', '弹幕', '音效', '字幕', '收藏', '分享',
-            '评论', '点赞', '转发', '关注', '朋友', '首页', '推荐', '直播', '放映厅',
-            '短剧', '下载', '我的作品', '合集', '日期筛选', '搜索', '播放', '暂停',
-            '静音', '下载抖音', '电子营业执照', '许可证', '备案', '举报', '观看历史',
-            '连播', '点击加载更多', '阅读全文', '短视频', '听抖音', 'AI抖音',
-            '创作者', '作品数据', '开直播', '私信关注', '关注私信'}
+    stop = _TOPIC_STOP
+    extra_skip = extra_skip or set()
     words = Counter()
     for c in comments:
+        # 先剔 UI 残留（播放器倒计时/占位昵称），否则会被切词成 "后播放下一个" 之类碎片
+        if is_ui_residue(c):
+            continue
+        # 2026-09-18：账号名残留（"4853叶镇平出海贸易"）+ 章节字幕残留
+        # （"沙坪河段…：水深6.3米，宽度80米"）都不是评论，会把话题榜整榜占满
+        if is_topic_noise(c):
+            continue
+        # 平台注入内容（跨数据集逐字重复）同样不是评论
+        if c in extra_skip:
+            continue
+        # 标签文案 = 视频标题/账号自述，不是用户评论（2026-09-18 由 >=2 收紧到 >=1）
+        if c.count('#') >= 1:
+            continue
         # 提取中文词（2-6字）
         for w in re.findall(r'[\u4e00-\u9fff]{2,6}', c):
             if w not in stop:
@@ -240,6 +260,7 @@ def build_cross_account_report() -> str:
     # 收集所有账号+关键词的评论
     all_comments = []
     sources = []
+    per_dataset = {}
     for d in sorted(OUTPUT_BASE.iterdir()):
         if not d.is_dir() or not (d.name.startswith('account_') or d.name.startswith('keyword_')):
             continue
@@ -249,6 +270,10 @@ def build_cross_account_report() -> str:
             label += '」'
             sources.append((label, len(comments)))
             all_comments.extend(comments)
+            per_dataset[d.name] = comments
+
+    # 平台注入内容（跨数据集逐字重复，如推荐流标题）——只用于话题榜，不进其它统计
+    platform_injected = cross_dataset_duplicates(per_dataset)
 
     total = len(all_comments)
     uniq = len(set(all_comments))
@@ -261,7 +286,7 @@ def build_cross_account_report() -> str:
 
     # 1. 高热度话题（词频）
     lines.append("## 一、当前高热度话题 Top 20\n")
-    for w, c in top_words(all_comments, 20):
+    for w, c in top_words(all_comments, 20, extra_skip=platform_injected):
         pct = c / max(1, total) * 100
         lines.append(f"{w}（{c} 次，{pct:.0f}%）")
 

@@ -1,15 +1,23 @@
 ---
 name: dbs-agent-migration
-description: |
-  Agent 工作台迁移。把任意项目整理成 Claude Code / Codex / Grok 三端一致、可长期维护的 Agent 工作台：审计规则文件、识别真源、统一命名并生成 bridge。
-  触发方式：/dbs-agent-migration、/agent迁移、「迁移到 Codex」「迁移到 Claude Code」「迁移到 Grok」「统一 AGENTS.md」「整理 skill bridge」「我的 Agent 工作台很乱」「帮我统一 Claude 和 Codex 和 Grok」
-  Agent workspace migration. Turn any project into a maintainable Claude Code / Codex / Grok three-host workspace by auditing rule files, establishing source-of-truth skills, normalizing names, and generating bridges.
-  Trigger: /dbs-agent-migration, /agent-migration, "migrate to Codex", "migrate to Claude Code", "migrate to Grok", "fix AGENTS.md", "organize skill bridges"
+description: >
+  Agent 工作台迁移。把任意项目整理成 Claude Code / Codex / Grok 三端一致、可长期维护的 Agent
+  工作台：审计规则文件、识别真源、统一命名并生成 bridge。
+
+  触发方式：/dbs-agent-migration、/agent迁移、「迁移到 Codex」「迁移到 Claude Code」「迁移到 Grok」「统一
+  AGENTS.md」「整理 skill bridge」「我的 Agent 工作台很乱」「帮我统一 Claude 和 Codex 和 Grok」
+
+  Agent workspace migration. Turn any project into a maintainable Claude Code /
+  Codex / Grok three-host workspace by auditing rule files, establishing
+  source-of-truth skills, normalizing names, and generating bridges.
+
+  Trigger: /dbs-agent-migration, /agent-migration, "migrate to Codex", "migrate
+  to Claude Code", "migrate to Grok", "fix AGENTS.md", "organize skill bridges"
 ---
 
 # dbs-agent-migration：Agent 工作台迁移
 
-你是 dontbesilent 的 Agent 工作台迁移工具。你的任务是把一个项目从混乱、半迁移、不可维护的状态，整理成一套可长期维护的 Agent 工作台。你要完成的工作包括审计规则文件、识别真源、统一命名、生成 bridge 和验证结构。
+你是破雾的 Agent 工作台迁移工具。你的任务是把一个项目从混乱、半迁移、不可维护的状态，整理成一套可长期维护的 Agent 工作台。你要完成的工作包括审计规则文件、识别真源、统一命名、生成 bridge 和验证结构。
 
 **这不是安装教程。也不是脚本执行器。** 你做的是一套带审计、收编、命名、桥接和验证的迁移流程。
 

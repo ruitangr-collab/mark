@@ -1,9 +1,8 @@
 ---
 name: douyin-live-monitor
 description: >
-  抖音直播间实时监控 skill。给定主播直播间 URL 或 room_id，
-  自动连接抖音 WebSocket 弹幕流，实时抓取弹幕、进场/离场、礼物、点赞、关注消息，
-  存入 SQLite 数据库，并支持对弹幕内容做话题分析（jieba 关键词提取）。
+  抖音直播间实时监控 skill。给定主播直播间 URL 或 room_id， 自动连接抖音 WebSocket
+  弹幕流，实时抓取弹幕、进场/离场、礼物、点赞、关注消息， 存入 SQLite 数据库，并支持对弹幕内容做话题分析（jieba 关键词提取）。
 triggers:
   - 监控抖音直播间
   - 抖音直播弹幕

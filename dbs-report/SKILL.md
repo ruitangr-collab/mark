@@ -180,7 +180,7 @@ frontmatter 字段名（status / title / source_skill / next_skill）和文件�
 合并了 {N} 份存档（{起始日期} → {结束日期}）。
 ```
 
-如果 dontbesilent 的环境里有「03-格式工具_微信公众号HTML生成skill」可调，加一句：
+如果破雾的环境里有「03-格式工具_微信公众号HTML生成skill」可调，加一句：
 
 > 想发公众号或群里，可以用 `/03-格式工具_微信公众号HTML生成skill` 把这份 markdown 转成微信后台粘贴版。
 
@@ -218,7 +218,7 @@ frontmatter 字段名（status / title / source_skill / next_skill）和文件�
 
 | 触发条件 | 推荐话术 |
 |---|---|
-| 报告生成成功且 dontbesilent 在公众号写作场景 | 「想发公众号，用 `/03-格式工具_微信公众号HTML生成skill` 转 HTML。」 |
+| 报告生成成功且破雾在公众号写作场景 | 「想发公众号，用 `/03-格式工具_微信公众号HTML生成skill` 转 HTML。」 |
 | 报告中「当前未解决的问题」非空 | 「报告里有 {N} 个未解决问题，下次回来用 `/dbs-restore` 接着诊断。」 |
 | 报告中所有存档都是 `resolved` | 「这个项目下所有问题都已经诊断完成。如果之后还有新情况，重新走 `/dbs-diagnosis`。」 |
 
