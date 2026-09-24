@@ -1,0 +1,86 @@
+{
+  "_readme": "【PocketGraft v2 确认模板】复制本文件为你的订单 confirm.json，按 9 项逐项改，然后走 confirm.py --validate → --sign1 → run_pipeline.py → confirm.py --sign2。本字段不参与校验，可删。",
+  "_matrix_3x3": "料来源{A同料,B保持,new新指定} x 色来源{A同色,B保持,new新指定}：1=A料A色 2=A料B色 3=A料新色 4=B料A色 5=B料B色 6=B料新色 7=新料A色 8=新料B色 9=新料新色",
+  "meta": {
+    "client": "示例客户A",
+    "style_no": "DEMO-001",
+    "image_a": "demos/A_back.jpg",
+    "image_b": "demos/B_back.jpg",
+    "image_c": null,
+    "operator": "示例操作员",
+    "date": "2026-09-04"
+  },
+  "items": {
+    "env": {
+      "local_gpu": true,
+      "offline": false
+    },
+    "color": {
+      "fabric_src": "A",
+      "color_src": "A",
+      "matrix_cell": 1
+    },
+    "sources": {
+      "_readme": "三图同改：每个属性独立指定来源 A/B/C/new。缺省形状/材质取B、颜色取A（向后兼容）。",
+      "shape_from": "B",
+      "fabric_from": "B",
+      "color_from": "A"
+    },
+    "texture": {
+      "mode": "approx"
+    },
+    "nlp": {
+      "mode": "llm"
+    },
+    "coord_tol": {
+      "pct": 40
+    },
+    "shape": {
+      "type": "贴袋",
+      "contour": "略梯形",
+      "corner_r": 1.2,
+      "flap": true,
+      "flap_w_pct": 60,
+      "flap_dist_cm": 1.5,
+      "rivet": false,
+      "rivet_n": 0,
+      "rivet_gap_cm": 0,
+      "stitch": "single",
+      "stitch_mm": 3,
+      "orientation_locked": true
+    },
+    "size": {
+      "mode": "B",
+      "w": 14,
+      "h": 16
+    },
+    "position": {
+      "view": "front",
+      "side": "right",
+      "wearer_x": 0.7,
+      "wearer_y": 0.45,
+      "human": "右前片, 腰头下15cm, 侧缝内13cm, 袋口平行腰头",
+      "mirror": true,
+      "mirror_locked": true,
+      "mirror_copy_left": false
+    },
+    "stitching": {
+      "color_src": "accent",
+      "type": "single",
+      "width_mm": 3,
+      "effect": "worn"
+    }
+  },
+  "sign1": {
+    "username": null,
+    "timestamp": null,
+    "responsibility": null,
+    "hash": null
+  },
+  "sign2": {
+    "username": null,
+    "timestamp": null,
+    "responsibility": null,
+    "hash": null
+  }
+}

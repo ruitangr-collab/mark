@@ -1,0 +1,28 @@
+# PocketGraft 提示词模板（英文，SD1.5 模型只认英文）
+
+## 正面（POSITIVE）模板
+a {pocket_type} denim jeans pocket, made of the same {wash} as the garment, {stitching}, {hardware}, photorealistic, matching fabric texture and lighting, highly detailed, 8k
+
+## 反面（NEGATIVE）
+extra pocket, deformed pocket, misaligned, distorted seams, low quality, blurry, watermark, mutated, cartoon, illustration, extra limbs
+
+## 槽位默认值（按 B 真实情况替换）
+pocket_type : welt / flap / cargo / coin
+wash        : mid-wash blue rigid denim
+stitching   : double topstitching in contrast thread
+hardware    : antique brass rivet
+
+## 填好的实例（B=明线双唇袋+复古黄铜钉）
+a welt denim jeans pocket, made of the same mid-wash blue rigid denim as the garment, double topstitching in contrast tan thread, antique brass rivet, photorealistic, matching fabric texture and lighting, highly detailed, 8k
+
+## 撞色款实例（2026-09-03 Coleman B 卡其棕 + A 牛仔深蓝）
+a single patch pocket on the back-right hip of denim trousers, made of Cedar-brown heavy canvas (contrasting with the indigo denim garment), single topstitching in mustard-yellow contrast thread, rounded upper corners, sharp lower corners, photorealistic, matching fabric texture and lighting, highly detailed, 8k
+
+## 同料款实例（用户最终选定：料用 A 牛仔、袋型/走线/圆角借 B）
+a single patch pocket on the back-right hip of indigo denim trousers, same fabric as the garment, single topstitching in mustard-yellow contrast thread, rounded upper corners, sharp lower corners, photorealistic, matching fabric texture and lighting, highly detailed, 8k
+
+## 铁律
+1. 只描述蒙版里的口袋，绝不要写 "a pair of jeans" / "model wearing"
+2. 有 B 参考图 → 文本可简写，让参考图主导"长相"
+3. 无 B 图只有文字 → 袋型/洗水/走线/五金全写清
+4. 撞色款必须显式写清袋料颜色（如 Cedar-brown canvas）；同料款必须写 "same fabric as the garment"，避免 AI 自由发挥搞错色

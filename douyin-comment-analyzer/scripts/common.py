@@ -7,7 +7,7 @@ keyword_extract.py / account_analyzer.py 共享：
   - 评论文本过滤（含播放器控件/时间戳噪音）
   - 评论提取（RENDER_DATA + DOM 文本双通道）
 """
-import re, time, base64, html as html_mod
+import os, re, time, base64, html as html_mod
 from urllib.parse import unquote
 
 # 页面控件/导航噪音词（评论区抓取时剔除）
@@ -238,6 +238,29 @@ def wait_for_login(page) -> bool:
     return False
 
 
+def looks_like_feed_caption(text: str) -> bool:
+    """识别「推荐流视频标题+简介」（2026-09-24 建立）
+
+    判据（实测莱基自贸区 233 条中 31 条长文本，29 条为信息流文案）：
+      1. 标题回声：首个空格/全角空格前的片段（≥8 字）在正文里再次出现
+      2. 首 40 字内出现【】《》「」｜ 等标题装饰符，且全文 ≥45 字
+      3. 出现栏目化措辞：本期 / 第一视角 / 免责声明 / 周报 / 新片预告
+    """
+    # 号主自制系列视频的「第N集 | …」简介（与长度无关，须前置）
+    if re.match(r'^第\d+[集期][\s|｜]', text):
+        return True
+    if len(text) < 45:
+        return False
+    if any(k in text for k in ('本期拆解', '第一视角', '免责声明', '周报', '新片预告')):
+        return True
+    head = re.split(r'[  ]', text, 1)[0]
+    if len(head) >= 8 and head in text[len(head):]:
+        return True
+    if re.search(r'[【】《》「」｜|]', text[:40]):
+        return True
+    return False
+
+
 def is_comment_text(text: str) -> bool:
     """判断是否为有效评论文本（过滤页脚/导航/播放器控件/时间戳噪音）"""
     if len(text) < 2 or len(text) > 500:
@@ -263,6 +286,9 @@ def is_comment_text(text: str) -> bool:
     # 标签密集的长文案 = 账号自述/营销话术，不是真实用户评论
     if text.count('#') >= 3:
         return False
+    # 推荐流视频「标题+简介」文案（跨账号复现，污染词频榜）
+    if looks_like_feed_caption(text):
+        return False
     # 占位昵称（"用户7048135123713"）
     if PLACEHOLDER_USER_RE.match(text):
         return False
@@ -270,6 +296,42 @@ def is_comment_text(text: str) -> bool:
     if COUNTDOWN_RE.match(text):
         return False
     return True
+
+
+# ── 2026-09-24 新增：跨账号复现的「污染长文案」黑名单 ──────────────────
+# 根因（本日排查确认）：DOM 通道原为 page('tag:body').text.split('\n')，
+# 会把**右侧推荐流里其它视频的标题/简介**一并抓成评论。判据：同一条文案
+# 在多个互不相干的账号里稳定复现（如「2023年厂房设备就通过了验收…通电即
+# 投产！」已累计 8 个账号）。这里用「特征子串」命中即丢弃，比精确匹配稳。
+POLLUTION_SUBSTRINGS = [
+    '2023年厂房设备就通过了验收',
+    '中设集团输变电项目投用',
+    '通电即投产',
+]
+
+_BLOCKLIST_FILE = os.path.join(
+    os.path.expanduser('~'), '.workbuddy', 'douyin_analysis', '_archive',
+    'comment_pollution_blocklist.txt')
+
+
+def _load_pollution_blocklist() -> list:
+    """加载可持续追加的污染文案黑名单（一行一条，# 开头为注释）"""
+    try:
+        with open(_BLOCKLIST_FILE, encoding='utf-8') as f:
+            return [l.strip() for l in f
+                    if l.strip() and not l.startswith('#')]
+    except Exception:
+        return []
+
+
+def _is_pollution(text: str, extra: list) -> bool:
+    for s in POLLUTION_SUBSTRINGS:
+        if s in text:
+            return True
+    for s in extra:
+        if len(s) >= 8 and s in text:
+            return True
+    return False
 
 
 def _own_prefix(text: str) -> str:
@@ -303,9 +365,15 @@ def extract_comments_from_page(page) -> list[str]:
     字段，会被误当评论抓进来。实测园区官方号有 28-31% 的"评论"其实是账号自己发的视频
     文案（带 #话题标签的长句），把话题分析严重带偏。
     对策：先取视频 desc 加入排除集，再过滤掉标签密集的营销长文案。
+
+    2026-09-24 二次修复（污染第 8 次复现后排查）：DOM 通道原取整页 body，
+    右侧推荐流/侧栏其它视频的标题与简介会被当成评论，且跨账号复现同一条。
+    改为**优先只取评论区容器**；容器命中且条数达标就不再回落整页，
+    另叠加持久化污染黑名单。
     """
     texts = []
     decoded = get_render_data(page)
+    _pollution = _load_pollution_blocklist()
 
     # 视频自身简介 → 排除集（RENDER_DATA 里视频描述字段为 "desc"）
     own_texts = set()
@@ -324,6 +392,8 @@ def extract_comments_from_page(page) -> list[str]:
         # 简介污染双保险：精确命中 + 前缀命中（挡 DOM 截断版 / 推荐流文案）
         if t in own_texts or looks_like_own(t):
             return False
+        if _is_pollution(t, _pollution):
+            return False
         return is_comment_text(t) and t not in texts
 
     if decoded:
@@ -333,6 +403,38 @@ def extract_comments_from_page(page) -> list[str]:
                 if keep(t):
                     texts.append(t.strip())
 
+    # ── DOM 通道：先只取评论区容器，避免整页 body 混入推荐流 ──
+    comment_selectors = [
+        '[data-e2e="comment-list"]',
+        'div[class*="comment-list"]',
+        'div[class*="commentList"]',
+        'div[class*="CommentList"]',
+        'ul[class*="comment"]',
+    ]
+    scoped = []
+    for sel in comment_selectors:
+        try:
+            nodes = page(sel)
+            if not nodes:
+                continue
+            for node in nodes:
+                for line in node.text.split('\n'):
+                    line = line.strip()
+                    if keep(line):
+                        scoped.append(line)
+            if len(scoped) >= 5:
+                break
+            scoped = []
+        except Exception:
+            continue
+
+    if len(scoped) >= 5:
+        print(f"    [DOM] 评论区容器命中 {len(scoped)} 条（未回落整页）")
+        texts.extend(scoped)
+        return texts
+    print("    [DOM] 评论区容器未命中 → 回落整页 body（可能混入推荐流）")
+
+    # 回落：整页 body（保守，仍带污染黑名单与简介排除）
     try:
         body_lines = [l.strip() for l in page('tag:body').text.split('\n') if l.strip()]
         for line in body_lines:

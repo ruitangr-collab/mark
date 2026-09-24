@@ -1,0 +1,25 @@
+{
+  "backend": "fooocus_or_comfyui",
+  "input": {
+    "image_a": "A.png",
+    "image_b_reference": "B.png",
+    "mask_normalized": {
+      "x": 0.52,
+      "y": 0.45,
+      "w": 0.18,
+      "h": 0.22
+    }
+  },
+  "prompt": {
+    "positive": "a welt denim jeans pocket, made of the same mid-wash blue rigid denim as the garment, double topstitching in contrast thread, antique brass rivet, photorealistic, matching fabric texture and lighting, highly detailed, 8k, identical to the supplied reference pocket",
+    "negative": "extra pocket, deformed pocket, misaligned, distorted seams, low quality, blurry, watermark, mutated, cartoon, illustration, extra limbs"
+  },
+  "params": {
+    "sampler": "DPM++ 2M Karras",
+    "steps": 30,
+    "cfg": 7,
+    "inpaint_denoise": 0.65,
+    "upscale": "4x-UltraSharp"
+  },
+  "_todo": "按你装的 Fooocus(--api)/ComfyUI 实际 endpoint 发 HTTP 请求;本脚本只产出载荷。"
+}

@@ -1,0 +1,22 @@
+{
+  "input": {
+    "image_a": "C:/Users/user/.workbuddy/skills/garment-local-modify/demos/A_back.jpg",
+    "image_b_reference": "C:/Users/user/.workbuddy/clipboard-images/clipboard-2026-09-03T09-32-40-316Z-76006209.jpg",
+    "mask_normalized": {
+      "x": 0.654,
+      "y": 0.373,
+      "w": 0.171,
+      "h": 0.179
+    }
+  },
+  "prompt": {
+    "positive": "a single patch pocket on the back-right hip of denim trousers, made of Cedar-brown heavy canvas (contrasting with the indigo denim garment), single topstitching in mustard-yellow contrast thread, rounded upper corners, sharp lower corners, photorealistic, matching fabric texture and lighting, highly detailed, 8k",
+    "negative": "extra pocket, deformed pocket, misaligned, distorted seams, low quality, blurry, watermark, mutated, cartoon, illustration, extra limbs"
+  },
+  "params": {
+    "steps": 30,
+    "cfg": 7,
+    "inpaint_denoise": 0.65,
+    "upscale": "4x-UltraSharp"
+  }
+}

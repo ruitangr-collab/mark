@@ -61,6 +61,7 @@ TIER_CYCLE = {'S': 1, 'A': 3, 'B': 7}   # tier → 巡查周期（天）
 TIER_NEW_DAYS = 7      # 加入未满 N 天的新号，一律按 S 观察
 TIER_A_IDLE = 7        # 作品数停顿 ≥ N 天 → A
 TIER_B_IDLE = 21       # 作品数停顿 ≥ N 天 → B
+BASELINE_WINDOW = 20   # 常态基线取「最近 N 条作品」的中位数（坑 27：不可取全量）
 
 # 评论过滤规则复用 douyin-comment-analyzer 的 common.py（避免两套噪音词表漂移）
 _COMMON_DIR = Path.home() / ".workbuddy/skills/douyin-comment-analyzer/scripts"
@@ -803,8 +804,12 @@ def cmd_run(only_sec_uid: str | None = None, fetch_comments: bool = True,
             delta = (rows[0] - rows[1]) if len(rows) >= 2 and rows[0] is not None and rows[1] is not None else None
 
             # 常态基线：已采作品点赞数的中位数，用于判断「疑似爆款」
-            c.execute("SELECT digg_count FROM videos WHERE sec_uid=? AND digg_count IS NOT NULL",
-                      (sec_uid,))
+            # 【坑 27】必须只取「最近 N 条」而非全量：全量中位数会被历史爆款/远古视频
+            # 拉高（如华哥～非洲专线全量 1471 vs 近 20 条 258），导致倍数判据长期失真、
+            # 真爆款被压成 0.06x 假信号。手工改库无效——本函数每轮都会重算覆盖。
+            c.execute("""SELECT digg_count FROM videos
+                         WHERE sec_uid=? AND digg_count IS NOT NULL
+                         ORDER BY aweme_id DESC LIMIT ?""", (sec_uid, BASELINE_WINDOW))
             diggs = sorted(r[0] for r in c.fetchall())
             baseline = diggs[len(diggs) // 2] if diggs else None
 
@@ -1197,8 +1202,10 @@ def cmd_backfill(only_sec_uid: str | None = None):
             items = extract_homepage_videos(page)
             n = sync_homepage_videos(c, items, sec_uid, now, insert_new=True)
 
-            c.execute("SELECT digg_count FROM videos WHERE sec_uid=? AND digg_count IS NOT NULL",
-                      (sec_uid,))
+            # 【坑 27】同上：只取最近 N 条，避免全量中位数被历史爆款拉高
+            c.execute("""SELECT digg_count FROM videos
+                         WHERE sec_uid=? AND digg_count IS NOT NULL
+                         ORDER BY aweme_id DESC LIMIT ?""", (sec_uid, BASELINE_WINDOW))
             diggs = sorted(r[0] for r in c.fetchall())
             baseline = diggs[len(diggs) // 2] if diggs else None
             c.execute("""UPDATE accounts SET nickname=COALESCE(?, nickname),
