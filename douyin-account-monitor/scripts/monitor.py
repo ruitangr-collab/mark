@@ -208,6 +208,16 @@ def safe_dir_name(name: str) -> str:
     return name[:40] or 'unknown'
 
 
+# 【坑 28】2026-09-29：坑 26 的昵称校验用字符串全等比较，而抖音主页/搜索结果里的昵称
+# 常带 emoji 或全角空格（库内「非洲豪哥 (加纳建材市场招商)」，页面抓到「非洲豪哥 (加纳🇬🇭建材市场招商)」），
+# 一字之差就被判脏跳过，账号永远 ok=0。修法：比较前先剥掉非字母数字汉字字符。
+_EMOJI_RE = re.compile(r'[^0-9A-Za-z\u4e00-\u9fff]+')
+
+
+def norm_nickname(s: str) -> str:
+    return _EMOJI_RE.sub('', s or '').lower()
+
+
 # ─── 浏览器 ────────────────────────────────────────────────────────────
 def open_browser(headless: bool = False):
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
@@ -719,7 +729,9 @@ def cmd_run(only_sec_uid: str | None = None, fetch_comments: bool = True,
             # 【坑 26】2026-09-22：page.get() 偶发不跳转（仍停在上一个账号的主页），
             # 于是把上一个账号的粉丝/获赞/作品数写进本账号快照（实测「非洲恒力润滑油宁生」
             # 被写成邹先华的 253.7 万粉，凭空 +2531877）。判别：抓到的昵称与库内不符即判脏。
-            if info.get('nickname') and nickname and info['nickname'] != nickname:
+            # 【坑 28】2026-09-29：改用 norm_nickname 归一化（剥 emoji/空格/符号）后再比，
+            # 否则昵称里多一个国旗 emoji 就被误判为「页面未跳转」→ 账号永远 ok=0（非洲豪哥）。
+            if info.get('nickname') and nickname and norm_nickname(info['nickname']) != norm_nickname(nickname):
                 print(f"   ⚠️  页面未跳转（抓到「{info['nickname']}」≠ 本账号「{nickname}」），判脏跳过")
                 c.execute("""INSERT INTO snapshots (sec_uid, checked_at, ok) VALUES (?,?,0)""", (sec_uid, now))
                 conn.commit()

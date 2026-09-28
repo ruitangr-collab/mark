@@ -166,8 +166,9 @@ def build_account_register() -> str:
     rows.sort(key=lambda x: ({'S': 0, 'A': 1, 'B': 2}[x['level']], -x['density']))
 
     lines = ["# 【监控对象】账号清单\n",
-             "> 分级标准：S=出海服务核心（考察招商/仓储物流/顾问咨询/供应链，密度≥13%且需求≥50条）；"
-             "A=数据达标但非纯服务类；B=低需求或非目标人群。S级名单见 `s_watchlist.json`。\n",
+             "> 分级标准：**S=人工确认的出海服务核心名单**（考察招商/仓储物流/顾问咨询/供应链，名单见 `s_watchlist.json`，"
+             "与「密度≥13% 且需求≥50条」的双线达标判定相互独立——名单成员即使当日密度未达标仍标 S）；"
+             "A=密度≥11% 或需求≥60 的实操/半服务号；B=低需求或非目标人群。\n",
              "| 级别 | 账号 | 粉丝 | 需求密度 | 需求数 | 评论数 | 作品数 | 服务类型 | 分析日期 |",
              "|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
@@ -287,8 +288,9 @@ def build_cross_account_report() -> str:
     # 1. 高热度话题（词频）
     lines.append("## 一、当前高热度话题 Top 20\n")
     for w, c in top_words(all_comments, 20, extra_skip=platform_injected):
+        # 2026-09-26 修：语料上万条时 :.0f 会把所有词都显示成 0%，改用 1 位小数
         pct = c / max(1, total) * 100
-        lines.append(f"{w}（{c} 次，{pct:.0f}%）")
+        lines.append(f"{w}（{c} 次，{pct:.1f}%）")
 
     # 2. 类型占比：按需求关键词分类
     lines.append("\n## 二、评论区内容类型分布\n")

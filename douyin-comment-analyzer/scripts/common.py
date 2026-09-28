@@ -185,6 +185,9 @@ TOPIC_STOPWORDS = {
     '关注我', '点个赞', '感谢观看', '谢谢观看', '点赞关注',
     # 平台计数残留（"164粉丝"、"39获赞"）
     '粉丝', '获赞', '后播放',
+    # 视频简介/页面 chrome 残留（2026-09-26 补：旧口径整页抓取遗留，
+    # 【汇报】跨账号趋势汇总 的 Top20 长期被这几项占据，如「属地29次」「爆竹29次」）
+    '属地', '爆竹', '作者声明', '抖音号', '记者',
 }
 
 
@@ -403,38 +406,66 @@ def extract_comments_from_page(page) -> list[str]:
                 if keep(t):
                     texts.append(t.strip())
 
-    # ── DOM 通道：先只取评论区容器，避免整页 body 混入推荐流 ──
+    # ── DOM 通道：只取评论区容器 ──
+    # 2026-09-25 三次修复（污染第 9 次复现 → dump 真实视频页定位到两个真 bug）：
+    #   bug1【语法】：DrissionPage 的 `page(sel)` 返回**单个元素**不是列表，且裸属性选择器
+    #        必须带 `css:` 前缀。原写法 page('[data-e2e="comment-list"]') 恒 0 命中，
+    #        于是**每天每号都在回落整页**，昨天的"容器未命中"诊断就是它造成的假象。
+    #        → 必须用 page.eles('css:...') 取列表。
+    #   bug2【语义】：容器命中但内容是「暂无评论」时仍回落整页，把页面 chrome 与推荐流
+    #        当评论。实测一个赞比亚园区号的 8 个视频**全部 0 条真实评论**，
+    #        却"抓"出 297 条（含「京公网安备11010802050006号」「快乐大本营」「粉丝0」）。
+    #        → 容器显式声明无评论时**直接返回空**，不回落。
+    #   bug3【策略】：整页 body 回落本身是 100% 噪音源，已默认关闭；
+    #        确需旧行为时设环境变量 DOUYIN_COMMENT_BODY_FALLBACK=1。
+    EMPTY_HINT = ('暂无评论', '还没有评论', '暂无更多评论', '评论加载中')
     comment_selectors = [
-        '[data-e2e="comment-list"]',
-        'div[class*="comment-list"]',
-        'div[class*="commentList"]',
-        'div[class*="CommentList"]',
-        'ul[class*="comment"]',
+        'css:[data-e2e="comment-list"]',
+        'css:div[class*="comment-mainContent"]',
+        'css:ul[class*="comment"]',
+        'css:div[class*="comment-list"]',
+        'css:div[class*="commentList"]',
+        'css:div[class*="CommentList"]',
     ]
-    scoped = []
+    scoped: list[str] = []
+    container_hit = False
     for sel in comment_selectors:
         try:
-            nodes = page(sel)
+            nodes = page.eles(sel)
             if not nodes:
                 continue
+            container_hit = True
             for node in nodes:
                 for line in node.text.split('\n'):
                     line = line.strip()
                     if keep(line):
                         scoped.append(line)
-            if len(scoped) >= 5:
+            if scoped:
                 break
-            scoped = []
         except Exception:
             continue
 
-    if len(scoped) >= 5:
+    raw = '\n'.join(scoped)
+    if any(h in raw for h in EMPTY_HINT):
+        # 容器在，但抖音明说没有评论 → 返回空，绝不回落整页
+        kept = [s for s in scoped if s not in EMPTY_HINT and s != '抢首评']
+        if kept:
+            print(f"    [DOM] 评论区容器命中 {len(kept)} 条（未回落整页）")
+            texts.extend(kept)
+        else:
+            print("    [DOM] 评论区容器显示「暂无评论」→ 真实 0 条，不回落整页")
+        return texts
+
+    if scoped:
         print(f"    [DOM] 评论区容器命中 {len(scoped)} 条（未回落整页）")
         texts.extend(scoped)
         return texts
-    print("    [DOM] 评论区容器未命中 → 回落整页 body（可能混入推荐流）")
 
-    # 回落：整页 body（保守，仍带污染黑名单与简介排除）
+    if os.environ.get('DOUYIN_COMMENT_BODY_FALLBACK') != '1':
+        print("    [DOM] 评论区容器无内容 → 返回空（body 回落已默认关闭，避免 100% 噪音）")
+        return texts
+
+    print(f"    [DOM] {'容器命中但无内容' if container_hit else '容器未命中'} → 回落整页 body（可能混入推荐流）")
     try:
         body_lines = [l.strip() for l in page('tag:body').text.split('\n') if l.strip()]
         for line in body_lines:

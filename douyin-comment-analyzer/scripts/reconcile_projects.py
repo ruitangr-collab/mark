@@ -60,6 +60,19 @@ SPECIAL_RULES = [
 # 国内地名开头 → 大概率是国内实体被误标为非洲项目 → 判噪
 DOMESTIC_CITY = ('广州', '临沂', '潍坊', '昌乐', '浙江', '上海', '义乌', '深圳', '石家庄', '济南', '青岛')
 
+# 2026-09-25 新增：人工确认的国内园区误标（精确全名匹配，禁止子串）。
+# 背景：国家识别器把「省潍坊市昌乐县开发区」标成加纳、「福鼎市白琳镇金山工业区」标成安哥拉，
+# 实为山东/福建的国内园区。用全名集合精确判噪，避免误伤同名非洲项目。
+MANUAL_NOISE = {
+    '省潍坊市昌乐县开发区',
+    '东省潍坊市昌乐县开发区',
+    '昌乐开发区',
+    '福鼎市白琳镇金山工业区',
+}
+# 上面是全名精确匹配；下面是**无歧义国内地名**子串（昌乐=山东潍坊、福鼎/白琳=福建宁德），
+# 在非洲语境下不可能真实出现，用于兜住抖音昵称里被截断的写法。
+DOMESTIC_TOKEN = ('昌乐', '福鼎', '白琳')
+
 # 2026-09-04 新增：非非洲地区的园区/市场。
 # 背景：扩关键词「加纳工业园」后，洛加纳工业园（泰国 Rojana，名字里带「加纳」二字）
 # 被国家匹配器误判为加纳项目。这类不是非洲资产，必须剔除。
@@ -309,8 +322,11 @@ def main():
 
         # 4) 噪音剔除
         is_foreign = any(f in raw for f in FOREIGN_PARK)
-        if is_noise(raw) or (not is_entity(raw)) or raw.startswith(DOMESTIC_CITY) or is_foreign:
+        is_manual_noise = raw in MANUAL_NOISE or any(t in raw for t in DOMESTIC_TOKEN)
+        if (is_manual_noise or is_noise(raw) or (not is_entity(raw))
+                or raw.startswith(DOMESTIC_CITY) or is_foreign):
             why = ('非非洲地区园区' if is_foreign else
+                   '国内实体误标非洲（人工确认）' if is_manual_noise else
                    '国内实体误标非洲' if raw.startswith(DOMESTIC_CITY) else
                    ('营销话术/泛称无专名' if is_noise(raw) else '无实体专名'))
             noise.append({'project': raw, 'country': ctry, 'accounts': p['account_count'],
