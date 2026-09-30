@@ -1,10 +1,10 @@
 name: zero-trace-image-edit
-display_name: 零痕改图 无痕改图 指哪改哪 局部改图 部件嫁接 三图同改
+display_name: 改图无痕
 display_name_en: Zero-Trace Image Edit
 description: 一张图加一句话，把你想改的地方改掉，其余一点不动。支持移除、替换、添加、改色四类局部编辑，也能把 B/C 图的部件搬到 A 图。双闸门质检，出图必为真实结果，不出半成品。
 description_zh: 指哪改哪的图片局部编辑：移除、替换、添加、改色，目标区域外像素零改动。
 description_en: Point-and-fix local image editing: remove, replace, add or recolor one spot, leave the rest of the picture untouched.
-keywords: 无痕改图,零痕改图,局部改图,图片局部编辑,指哪改哪,改图,P图,改色,局部改色,改颜色,去物体,去除物体,消除路人,去除瑕疵,图片精修,产品图美化,修图,照片修改,图片处理,AI修图,图片编辑,去水印,抠图,部件嫁接,三图同改,图生图,以图生图,无痕去水印,无痕抠图,无痕消除路人,无痕移除物体,局部去物体,图片局部换色,局部换色,局部精修,图片局部美化,指定区域改图,圈选改图,电商图片改图,商品图局部改色,商品图去瑕疵,照片局部修改,指定位置修图,AI局部改图
-category: 设计多媒体
-version: 4.3.0
+keywords: 无痕改图,零痕改图,局部改图,图片局部编辑,指哪改哪,三图同改,指定区域改图,无痕去水印,无痕抠图,局部抠图,白底图局部改图,商品图局部改色,商品图零痕修图
+category: 工具 > 图片处理
+version: 4.6.3
 author: stone肖深圳和AI全链路

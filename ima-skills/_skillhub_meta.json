@@ -18,5 +18,6 @@
   "description_en": "IMA notes & knowledge base management (read, write, search)",
   "iconSource": "https://openplatform-cdn.codebuddy.cn/public/skills/icons/ima-skills.svg",
   "iconLocalPath": "/Users/goterra/.workbuddy/skills/ima-skills/_icon.svg",
-  "iconDownloadedFrom": "https://openplatform-cdn.codebuddy.cn/public/skills/icons/ima-skills.svg"
+  "iconDownloadedFrom": "https://openplatform-cdn.codebuddy.cn/public/skills/icons/ima-skills.svg",
+  "installedContentHash": "sha256:7e12c966505fdce5331c86ac1eaf0e83dfe4443c1acdcebfaeb0f418aba60732"
 }

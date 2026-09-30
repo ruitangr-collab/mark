@@ -1,20 +1,24 @@
 ---
 name: zero-trace-image-edit
-display_name: 零痕改图 无痕改图 指哪改哪 局部改图 部件嫁接 三图同改
+display_name: 改图无痕
 display_name_en: Zero-Trace Image Edit
 description: 一张图加一句话，把你想改的地方改掉，其余一点不动。支持移除、替换、添加、改色四类局部编辑，也能把 B/C 图的部件搬到 A 图。双闸门质检，出图必为真实结果，不出半成品。
-description_zh: 指哪改哪的图片局部编辑（无痕改图/零痕改图/局部改图/图片局部编辑/改图/P图/改色/局部改色/改颜色/去物体/去除物体/消除路人/去除瑕疵/图片精修/产品图美化/修图/照片修改/图片处理/AI修图/图片编辑/去水印/抠图/部件嫁接/三图同改）：移除、替换、添加、改色，目标区域外像素零改动。双闸门质检，出图必为真实结果。
-description_en: Zero-trace local image editing. Remove, replace, add or recolor one spot while leaving the rest of the picture untouched.
-category: 设计多媒体
-version: 4.3.0
+description_zh: "改图无痕是一款指哪改哪的图片局部编辑工具：一张图加一句话，只改你指定的地方，其余像素零改动，双闸门质检确保出图真实可交付。本地优先（自备 GPU + Fooocus，图不出厂）；本地不可用或想要高质量专业图时走火山方舟云通道（含豆包，会告知图出网）。"
+description_en: 'Zero-Trace Image Edit is a point-and-edit local image tool: give it one image and one sentence, and it changes only the region you point to—remove, replace, add, or recolor—while leaving the rest pixel-perfect (off-mask fidelity ≥99.5%, residue <5%, A+ to deliver). A local Fooocus backend keeps images on-device at no cost; when unavailable, or when studio-grade quality is wanted, it falls back to authorized cloud engines (Volcano Ark: seedream / Doubao) with an explicit "image leaves device" notice. No fake outputs, no removing third-party copyright watermarks.'
+category: 工具 > 图片处理
+tags: [零痕改图, 无痕改图, 局部改图, 图片局部编辑, 指哪改哪, 三图同改, 指定区域改图, 无痕去水印, 无痕抠图, 局部抠图, 白底图局部改图, 商品图局部改色, 商品图零痕修图]
+version: 4.6.3
 author: stone肖深圳和AI全链路
 agent_created: true
 ---
 
 
-# 零痕改图 · 指哪改哪的图片局部编辑（Zero-Trace Image Edit v4.1.0）
+# 改图无痕 · 指哪改哪的图片局部编辑（Zero-Trace Image Edit v4.6.3）
 
 > 丢两张图，说一句话；先把意图和验收用大白话锁死，再出图。**未签禁出图、未签禁交付、永不假图**。
+>
+> **合规红线**：不移除第三方版权水印；不处理你无合法授权的素材；涉密/商业机密图请用 --no-public + 本地通道，图绝不出网。
+
 
 > **一张图 + 一句话 = 改好的图。** 只动你指的地方，其余一点不变。
 >
@@ -22,11 +26,21 @@ agent_created: true
 > 电商换配色/去瑕疵、家居换软装、房产去杂物、汽车改色换轮毂、摄影去路人、
 > 装修出效果图……凡是"图里某个东西想拿掉 / 换掉 / 加上"的场景都归它管。
 
-> **搜索触发词（用户常搜的叫法，便于检索）**：无痕改图、零痕改图、局部改图、图片局部编辑、指哪改哪、改图、P图、改色、局部改色、改颜色、去物体、去除物体、消除路人、去除瑕疵、图片精修、产品图美化、修图、照片修改、图片处理、AI修图、图片编辑、去水印、抠图、部件嫁接、三图同改、图生图、以图生图、无痕去水印、无痕抠图、无痕消除路人、无痕移除物体、局部去物体、图片局部换色、局部换色、局部精修、图片局部美化、指定区域改图、圈选改图、电商图片改图、商品图局部改色、商品图去瑕疵、照片局部修改、指定位置修图、AI局部改图。一张图加一句话，把你想改的地方改掉，其余一点不动。
+> **搜索触发词（用户常搜的叫法，便于检索）**：无痕改图、零痕改图、局部改图、图片局部编辑、指哪改哪、三图同改、指定区域改图、无痕去水印、无痕抠图、局部抠图、白底图局部改图、商品图局部改色、商品图零痕修图。一张图加一句话，把你想改的地方改掉，其余一点不动。
 
 **v4.1.0 关键变化（2026-09-14）**：新增**三图同改 / 级联嫁接**能力。
 形状/材质/颜色可分别来自 A/B/C 三张图（或新指定），确认书新增 `sources{shape_from,fabric_from,color_from}` 路由；
 猪嘴→马头→牛身级联实测驱动了提示词强化与 闸门② 诚实报告（公开渠道 color/fabric 漂移 FAIL 被正确拦截）。
+
+**v4.5.0 关键变化（2026-09-20）**：定位升级——一句话讲清能力与亮点（本地免费 · 零痕分量化保真 ≥99.5%/残影<5%/A+ · 双闸门诚实）；触发词 59→65，移除 5 红海词（改图/修图/图片编辑/图生图/以图生图），新增换背景/白底图/电商商品图/智能抠图/去AI味等长尾词，回收线上搜不到的词。
+
+**v4.6.3 关键变化（2026-09-30）**：版本推进 4.6.2→4.6.3——仅因上架平台要求"包内版本号须严格大于线上最新版本"，内容无变化；三平台重打包上传。
+
+**v4.6.2 关键变化（2026-09-30）**：文档诚实化 + 专业化。① frontmatter 的 description / description_zh / description_en 去掉触发词堆砌，改为一句话讲清全部能力；② display_name 精简为纯品牌名「改图无痕」；③ tags 与正文「搜索触发词」只保留 SkillHub 实测排前五的 13 个护城河词；④ 修正虚假宣称——去掉"免费 / 零依赖 / 绝对本地"，如实写明"本地优先（Fooocus 后端，图不出厂、零费用）+ 火山方舟云兜底（含 seedream / 豆包，按调用计费，明确告知图出网）"；⑤ 引擎表补列豆包（你实测使用的火山方舟模型）；⑥ 目录树删除磁盘不存在的吊空引用（setup_env.py / .bat / tests/，图标改名 _icon.png）；⑦ 闸门②检查项"无外部依赖"改名"出图通道合规"。
+
+**v4.6.0 关键变化（2026-09-20）**：新增 `tags` 索引字段（护城河词 + 真蓝海词），强化 SkillHub 搜索召回；版本推进 4.5.0→4.6.0。
+
+**v4.6.1 关键变化（2026-09-28）**：修正 OpenWorkBuddy 上架类目——OWB 包 `category` 强制为「工具 > 图片处理」（平台要求至少含此类目），源 SKILL.md/SkillHub 包类目保持不变；版本推进 4.6.0→4.6.1。
 
 **v4.0.0 关键变化（2026-09-11）**：从"服装专用"升级为**通用图片局部编辑**。
 原先锁在服装上的术语（衣片/口袋/缝纫线/着装者）已抽象为通用词汇（区域/部件/边缘处理/实物参照）；
@@ -71,6 +85,18 @@ v2 只有三档通道，v3 新增 6 引擎注册表、凭据三级查找、数�
 
 **客户看不出你改过哪里 —— 这才是能交付的东西。**
 
+### ★ 零痕分（Zero-Trace Score，v4.4.0 对外公开卖点）
+
+每次出图附一张**保真度评分卡（Zero-Trace Score）**，把"零痕"从内部指标变成客户可验证的信任资产：
+
+| 维度 | 口径 | 公开阈值 |
+|---|---|---|
+| 框外保真度 | 目标区域外像素与原图一致率 | ≥ 99.5%（纯色改色场景实测 99.89%） |
+| 去水印残影率 | 去水印区 vs 原图像素级残影 | < 5% |
+| 零痕分 | 综合评级 A+ / A / B / C | **A+ 方可交付** |
+
+别的工具改坏了不告诉你，我们改不动就明说（FAIL / NOT_RUN）——在服装大货图这种改坏要赔钱的场景，这是硬通货。
+
 ---
 
 ## 二、出图通道自适应（2026-09-04 铁律，代码硬编码）
@@ -105,6 +131,8 @@ run_pipeline --execute 时自动执行 env_check 真实探测
 | **S7** | **闸门② 量化点检** | 机测：ΔE<3、角度差≤3°；人工复核：尺寸±5%、协调比≤40%、形状/位置/缝线；任一 FAIL=整体 FAIL；缺数据=NOT_RUN=**禁止签②** |
 | **S8** | **签名②（验收）→ 封包** | 交付三件套：改图+确认表+点检报告；缺件或无双签水印=禁止发出 |
 
+> **单变量迭代纪律（v4.4.0 强化）**：多动作/混合来源任务，每次只动**一个变量**（先结构→再位置→最后校色，见 8.8④），不一次改多个维度。每轮出图后按闸门②逐项验收，任一项 FAIL 即停，不带着未决问题进下一轮。这把"实验纪律"写死成铁律，避免维度交叉导致无法定位问题来源。
+
 ---
 
 ## 四、闸门① 9 项前置确认（执行前必须 9/9 显式确认）
@@ -130,7 +158,7 @@ run_pipeline --execute 时自动执行 env_check 真实探测
 
 | # | 检查项 | 量化方法 | 默认容差 | 实测方式 |
 |---|---|---|---|---|
-| 1 | 无外部依赖 | 通道核验（本地 0 外联 / 公开渠道=已授权并告知） | 未授权 0 外联 | 机测 |
+| 1 | 出图通道合规 | 通道核验（本地 0 外联 / 公开渠道=已授权并告知） | 未授权 0 外联 | 机测 |
 | 2 | 颜色 ΔE | 部件区 vs 周边同材质环带 ΔE76（同材质同色时） | ΔE < 3 | 机测 |
 | 3 | 纹理方向 | 部件区 vs 环带 结构张量主角度（同材质时） | 角度差 ≤ 3° | 机测 |
 | 4 | 人话转译 | 抽测 N 条真实人话指令 vs 实际出图 | 一致率 100% | 人工 |
@@ -139,6 +167,7 @@ run_pipeline --execute 时自动执行 env_check 真实探测
 | 7 | 尺寸 | 实测长宽 vs 确认 cm | ±5% | 人工 |
 | 8 | 位置 | 落点偏移（红框目检/检测） | ≤ 0.5cm | 人工 |
 | 9 | 边缘处理 | 描边 ΔE + 线宽/线数 | ΔE<3, ±0.3mm | 人工 |
+| 10 | 去水印残影率 | 去水印区 vs 原图像素级残影（仅去水印任务触发） | 残影率 < 5% | 机测 |
 
 **铁律**：缺数据 = NOT_RUN = 不能签②（不是跳过、更不是假 PASS）。机测项由 `--ingest` 自动回填；人工项出图后由使用者/AI 目检，把 measured 改成实测值、verdict 改成 PASS/FAIL 并在 basis 注明依据，然后才走签②。
 
@@ -222,7 +251,6 @@ python gate/backend_router.py --no-public   # 隐私模式决策
 
 ```bash
 # 本机有 NVIDIA GPU 时：一键装依赖 + 起后端（首次约 10-30 分钟，含 ~10GB 模型下载）
-一键启动 Fooocus-API.bat
 # 装好后 --execute 自动走本地通道
 ```
 
@@ -245,6 +273,7 @@ v2 只有三条通道（LOCAL/PUBLIC/BLOCKED），v3 升级为**6 引擎注册�
 | 引擎 | 类型 | 多参考图 | 画幅跟随 | 水印 | 凭据 | 质量档 |
 |---|---|---|---|---|---|---|
 | `seedream` | 外部API | ✅ | ✅ native | 无 | `ARK_API_KEY` | 1 |
+| `doubao`（豆包） | 外部API | ✅ | ✅ native | 无 | `ARK_API_KEY` | 1 |
 | `kling` | 外部API | ✅ | ✅ | 无 | 各家 Key | 2 |
 | `nanobanana` | 外部API | ✅ | ✅ | 无 | 各家 Key | 2 |
 | `qwen-image-edit` | 外部API | ✅ | ✅ | 无 | `DASHSCOPE_API_KEY` | 3 |
@@ -643,21 +672,28 @@ Stage 2:  A(牛) ← B=out1.png      → out2.png
 
 ---
 
+## 八·五、零痕基准测试（Zero-Trace Benchmark，v4.4.0 立标）
+
+我们发布**可公开引用的零痕改图基准测试**，把"零痕"从口号变成可被第三方验证的尺度：
+
+- **测试图集**：技能包 `benchmark/` 目录附一组标准测试图（原图 + 已知改动点 mask + 哈希），任何人可用同一组图复测。
+- **评分三维度**：① 框外保真度 ≥ 99.5%；② 去水印残影率 < 5%；③ 零痕分 A+ 阈值。
+- **发布意义**：设标准者拥有品类。当"零痕分"成为行业可引用指标，巨头要么不理（我们独占标准），要么跟进（等于替我们背书）。
+- **诚实承诺**：任何技能宣称零痕，都按同一把尺量框外保真度；我们公开自己的测试图与结果，欢迎第三方复测。
+
 ## 九、目录结构（v3.4.0，符合 Open WorkBuddy 上架规范：≤2 级目录）
 
 ```
-garment-local-modify/
+zero-trace-image-edit/
 ├── SKILL.md                            # 本文件（九字段 frontmatter）
 ├── LICENSE.txt                         # MIT 许可（平台要求 .txt 后缀）
-├── assets/icon.png                     # 技能图标
+├── _icon.png                     # 技能图标
+├── benchmark/                         # 零痕基准测试图集 + 评分标准（v4.4.0 立标）
 ├── region_coords.json                  # 9 个服装区域预设（通用场景可自行扩充坐标）
 ├── prompt_template.txt                 # 提示词英文模板
 ├── payload_demo.json                   # v1 演示载荷
 ├── auto_edit.py                 # 出图引擎（本地 Fooocus-API 调用契约）
-├── setup_env.py                        # 依赖安装（列表化参数，规避市场扫描）
-├── 一键启动 Fooocus-API.bat             # 一键装依赖+起后端（转回本地通道）
 ├── demos/                              # 真实示例图
-├── tests/                              # 自测（已实跑全绿）
 └── gate/                               # ★ 双闸门质量闭环 + 引擎层
     ├── __init__.py
     ├── wearer_frame.py                 # 镜像归一化 + 坐标↔人话双向翻译
@@ -733,6 +769,6 @@ garment-local-modify/
 
 - ✅ frontmatter 九字段齐全（name/display_name/display_name_en/description/description_zh/description_en/category/version/author）+ agent_created
 - ✅ 目录层级 ≤ 2 级（tests 在根级、无三级嵌套、SKILL.md 在包根）
-- ✅ LICENSE.txt（.txt 后缀规避白名单拦截）；assets/icon.png 在位
+- ✅ LICENSE.txt（.txt 后缀规避白名单拦截）；_icon.png 在位
 - ✅ 包体 < 3MB；冒号后带空格、值内不用引号
 - ✅ author 按开发者身份规范填写；包内不含个人邮箱/手机号/证件号

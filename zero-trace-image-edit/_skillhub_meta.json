@@ -1,8 +1,9 @@
 {
-  "name": "零痕改图 无痕改图 指哪改哪 局部改图 部件嫁接 三图同改",
+  "name": "改图无痕",
   "installedAt": 1790155676002,
   "source": "marketplace",
-  "version": "4.3.0",
+  "version": "4.6.3",
   "skillId": "skill_2098346301266436096",
-  "iconSource": "letter:auto"
+  "iconSource": "letter:auto",
+  "installedContentHash": "sha256:34c7394cb67f9bf7aaa0ecf94a3a9d897780a754f6189de84e01bd3bf77bd0b9"
 }
